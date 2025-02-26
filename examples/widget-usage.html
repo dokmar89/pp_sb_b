@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>E-shop Demo</title>
+  <!-- Vložení skriptu -->
+  <script src="https://ageverification.cz/widget.js"></script>
+</head>
+<body>
+  <!-- Pro inline mód -->
+  <div id="age-verification"></div>
+
+  <script>
+    // Inicializace widgetu
+    const widget = new AgeVerification({
+      apiKey: "YOUR_API_KEY", // API klíč z dashboardu
+      mode: "modal", // nebo "inline"
+      container: "#age-verification", // povinné pro inline mód
+      onVerified: (result) => {
+        console.log("Verification successful:", result)
+        // Zde můžete zpracovat úspěšné ověření
+      },
+      onError: (error) => {
+        console.error("Verification failed:", error)
+        // Zde můžete zpracovat chybu
+      },
+      onClose: () => {
+        console.log("Widget closed")
+        // Zde můžete reagovat na zavření widgetu
+      }
+    })
+
+    // Inicializace widgetu
+    widget.init()
+
+    // Otevření widgetu při kliknutí na tlačítko
+    document.getElementById("verify-age").addEventListener("click", () => {
+      widget.open()
+    })
+  </script>
+</body>
+</html>
+
