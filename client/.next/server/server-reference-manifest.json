@@ -1,0 +1,30 @@
+{
+  "node": {
+    "8f22252f4c8fadd2ccfd82226f5765c44679a807": {
+      "workers": {
+        "app/dashboard/page": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22C%3A%5C%5CUsers%5C%5CFisko%5C%5Coverovaci_supabase%5C%5Cclient%5C%5Clib%5C%5Cactions%5C%5Cwallet.ts%22%2C%5B%22createTopUpTransaction%22%2C%22checkTopUpStatus%22%2C%22getWalletBalance%22%5D%5D%5D&__client_imported__=true!"
+      },
+      "layer": {
+        "app/dashboard/page": "action-browser"
+      }
+    },
+    "c74bd331cb6e8b5a24c45882ef0a25ddc4126dd2": {
+      "workers": {
+        "app/dashboard/page": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22C%3A%5C%5CUsers%5C%5CFisko%5C%5Coverovaci_supabase%5C%5Cclient%5C%5Clib%5C%5Cactions%5C%5Cwallet.ts%22%2C%5B%22createTopUpTransaction%22%2C%22checkTopUpStatus%22%2C%22getWalletBalance%22%5D%5D%5D&__client_imported__=true!"
+      },
+      "layer": {
+        "app/dashboard/page": "action-browser"
+      }
+    },
+    "e64e290087249509c14e06c592eb97cf466d286f": {
+      "workers": {
+        "app/dashboard/page": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22C%3A%5C%5CUsers%5C%5CFisko%5C%5Coverovaci_supabase%5C%5Cclient%5C%5Clib%5C%5Cactions%5C%5Cwallet.ts%22%2C%5B%22createTopUpTransaction%22%2C%22checkTopUpStatus%22%2C%22getWalletBalance%22%5D%5D%5D&__client_imported__=true!"
+      },
+      "layer": {
+        "app/dashboard/page": "action-browser"
+      }
+    }
+  },
+  "edge": {},
+  "encryptionKey": "LCgbX+9rc/MMFD1zhB0ynN86btJR4gNzTClGczMxzFk="
+}
