@@ -1,13 +1,11 @@
 // lib/actions/credit.ts
 "use server"
 
-import { createClient } from "@supabase/supabase-js"
+import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
+import { cookies } from "next/headers"
 
 // Vytvoření Supabase klienta pro serverové akce
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-)
+const supabase = createServerActionClient({ cookies })
 
 /**
  * Kontroluje, zda má společnost dostatek kreditu pro provedení verifikace
@@ -17,7 +15,7 @@ const supabaseAdmin = createClient(
 export async function checkCredit(companyId: string) {
   try {
     // 1. Získat všechny transakce společnosti
-    const { data: transactions, error: transactionsError } = await supabaseAdmin
+    const { data: transactions, error: transactionsError } = await supabase
       .from("wallet_transactions")
       .select("type, amount, status")
       .eq("company_id", companyId)
@@ -35,7 +33,7 @@ export async function checkCredit(companyId: string) {
     }, 0)
 
     // 3. Získat počet nevyúčtovaných verifikací
-    const { data: pendingVerifications, error: pendingError } = await supabaseAdmin
+    const { data: pendingVerifications, error: pendingError } = await supabase
       .from("verifications")
       .select("price")
       .eq("company_id", companyId)
@@ -73,7 +71,7 @@ export async function checkCredit(companyId: string) {
  */
 export async function deductCredit(companyId: string, verificationId: string, amount: number) {
   try {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabase
       .from("wallet_transactions")
       .insert({
         company_id: companyId,
