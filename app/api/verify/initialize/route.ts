@@ -1,83 +1,69 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
-import { checkCredit } from "@/lib/actions/credit"
+import { z } from "zod"
 
-export async function POST(request: Request) {
+const initializeSchema = z.object({
+  shopId: z.string(),
+  verificationMethod: z.string(),
+  redirectUrl: z.string().url().optional(),
+})
+
+export async function POST(request: NextRequest) {
   try {
-    const { shopId } = await request.json()
-    const authHeader = request.headers.get("authorization")
+    const body = await request.json()
+    const { shopId, verificationMethod, redirectUrl } = initializeSchema.parse(body)
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ 
-        success: false, 
-        error: "Missing API key" 
-      }, { status: 401 })
-    }
-
-    const apiKey = authHeader.split(" ")[1]
     const supabase = createRouteHandlerClient({ cookies })
 
-    // Fetch shop and customization data
+    // Ověření API klíče
     const { data: shop, error: shopError } = await supabase
       .from("shops")
-      .select(`
-        id,
-        status,
-        company_id,
-        customizations (
-          logo_url,
-          primary_color,
-          secondary_color,
-          font,
-          button_style,
-          verification_methods,
-          texts,
-          images
-        )
-      `)
-      .eq("api_key", apiKey)
+      .select("*")
+      .eq("id", shopId)
       .single()
 
     if (shopError || !shop) {
-      return NextResponse.json({ 
-        success: false, 
-        error: "Invalid API key" 
-      }, { status: 401 })
+      return NextResponse.json({ error: "Eshop nenalezen" }, { status: 404 })
     }
 
     if (shop.status !== "active") {
-      return NextResponse.json({ 
-        success: false, 
-        error: "Shop is not active" 
-      }, { status: 403 })
+      return NextResponse.json({ error: "Eshop není aktivní" }, { status: 403 })
     }
 
-    // Check credit
-    const { hasCredit, creditsLeft } = await checkCredit(shop.company_id)
-    
-    if (!hasCredit) {
-      return NextResponse.json({
-        success: false,
-        error: "Insufficient credit",
-        creditsLeft,
-      }, { status: 402 }) // 402 Payment Required
+    // Ověření, že metoda je povolená pro tento eshop
+    if (!shop.verification_methods.includes(verificationMethod)) {
+      return NextResponse.json(
+        { error: "Tato metoda ověření není pro tento eshop povolena" },
+        { status: 400 }
+      )
     }
 
-    // Return success with customization and shop data
+    // Vytvoření nové verifikace
+    const { data: verification, error: verificationError } = await supabase
+      .from("verifications")
+      .insert({
+        shop_id: shopId,
+        method: verificationMethod,
+        status: "pending",
+        redirect_url: redirectUrl
+      })
+      .select()
+      .single()
+
+    if (verificationError) {
+      throw verificationError
+    }
+
     return NextResponse.json({
-      success: true,
-      hasCredit: true,
-      creditsLeft,
-      customization: shop.customizations,
-      shopId: shop.id,
+      verificationId: verification.id,
+      status: verification.status
     })
-
   } catch (error) {
-    console.error("Initialization error:", error)
-    return NextResponse.json({ 
-      success: false, 
-      error: "Internal server error" 
-    }, { status: 500 })
+    console.error("Error initializing verification:", error)
+    return NextResponse.json(
+      { error: "Nepodařilo se inicializovat ověření" },
+      { status: 500 }
+    )
   }
 } 
