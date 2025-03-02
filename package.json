@@ -69,11 +69,13 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "tesseract.js": "^6.0.0",
+    "uuid": "^11.1.0",
     "vaul": "^0.9.6",
     "zod": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
+    "@types/pdfkit": "^0.13.9",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.20",

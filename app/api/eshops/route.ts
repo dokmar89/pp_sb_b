@@ -8,11 +8,11 @@ export async function GET() {
   // Získat aktuální session
   const { data: { session } } = await supabase.auth.getSession()
   
-  // Upravený dotaz - přidáno filtrování podle company_id
-  const { data: eshops } = await supabase
-    .from('eshops')
+  // Opravený dotaz - změna názvu tabulky z 'eshops' na 'shops'
+  const { data: shops } = await supabase
+    .from('shops')
     .select('*')
     .eq('company_id', session?.user?.user_metadata?.company_id)
 
-  return NextResponse.json(eshops)
+  return NextResponse.json(shops)
 } 

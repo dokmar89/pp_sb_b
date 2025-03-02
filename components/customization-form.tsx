@@ -6,20 +6,21 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import * as z from "zod"
-import { Eye } from "lucide-react"
+import { Eye, Loader2, Upload } from "lucide-react"
 
 import { getCustomization, updateCustomization } from "@/lib/actions/customization"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ColorPicker } from "@/components/color-picker"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { VerificationPreview } from "@/components/verification-preview"
 import { PreviewModal } from "@/components/verification/preview-modal"
+import { uploadLogo } from "@/lib/actions/upload"
 
 const formSchema = z.object({
-  logo: z.string().url().optional().or(z.literal("")),
+  logo: z.string().optional(),
+  logoFile: z.instanceof(File).optional(),
   primaryColor: z.string().min(1),
   secondaryColor: z.string().min(1),
   font: z.string().min(1),
@@ -59,9 +60,8 @@ export function CustomizationForm() {
   const searchParams = useSearchParams()
   const shopId = searchParams.get("shopId")
   const [isSaving, setIsSaving] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
-
-  // Přesuneme form mimo podmínku
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -94,27 +94,53 @@ export function CustomizationForm() {
     return <div>Chybí ID eshopu</div>
   }
 
+  async function handleLogoUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    const loadingToast = toast.loading("Nahrávám logo...")
+
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("shopId", shopId || "")
+
+      const result = await uploadLogo(formData)
+
+      if (result.success && result.url) {
+        toast.dismiss(loadingToast)
+        toast.success("Logo bylo nahráno")
+        form.setValue("logo", result.url)
+      } else {
+        toast.dismiss(loadingToast)
+        toast.error(result.error || "Nepodařilo se nahrát logo")
+      }
+    } catch (error) {
+      toast.dismiss(loadingToast)
+      toast.error("Nepodařilo se nahrát logo")
+    } finally {
+      setIsUploading(false)
+    }
+  }
+  
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSaving(true)
-    
-    // Přidáme loading toast
     const loadingToast = toast.loading("Ukládám nastavení...")
 
     try {
       const result = await updateCustomization({
         ...values,
-        shopId,
+        shopId: shopId || "",
       })
 
       if (result.success) {
-        // Nahradíme loading toast úspěšným
         toast.dismiss(loadingToast)
         toast.success("Nastavení bylo úspěšně uloženo", {
           description: "Změny se projeví při příštím ověření",
           duration: 3000,
         })
       } else {
-        // Nahradíme loading toast chybou
         toast.dismiss(loadingToast)
         toast.error("Nepodařilo se uložit nastavení", {
           description: result.error,
@@ -122,7 +148,6 @@ export function CustomizationForm() {
         })
       }
     } catch (error) {
-      // V případě neočekávané chyby
       toast.dismiss(loadingToast)
       toast.error("Došlo k neočekávané chybě", {
         description: "Zkuste to prosím znovu",
@@ -143,10 +168,42 @@ export function CustomizationForm() {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Logo</FormLabel>
-                <FormControl>
-                  <Input type="url" placeholder="https://example.com/logo.png" {...field} value={field.value || ""} />
-                </FormControl>
-                <FormDescription>Zadejte URL adresu vašeho loga</FormDescription>
+                <div className="flex gap-2">
+                  <FormControl>
+                    <Input placeholder="URL loga" {...field} />
+                  </FormControl>
+                  <div className="relative">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      onChange={handleLogoUpload}
+                      disabled={isUploading}
+                    />
+                    <Button type="button" variant="outline" disabled={isUploading}>
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Nahrávám...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          Nahrát
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                {field.value && (
+                  <div className="mt-2">
+                    <img
+                      src={field.value}
+                      alt="Logo náhled"
+                      className="h-12 w-auto object-contain border rounded p-1"
+                    />
+                  </div>
+                )}
                 <FormMessage />
               </FormItem>
             )}

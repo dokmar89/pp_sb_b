@@ -16,7 +16,11 @@ export async function POST(request: NextRequest) {
     const supabase = createRouteHandlerClient({ cookies })
 
     // Ověření API klíče
-    const { data: shop, error: shopError } = await supabase.from("shops").select("*").eq("id", shopId).single()
+    const { data: shop, error: shopError } = await supabase
+      .from("shops")
+      .select("*")
+      .eq("id", shopId)
+      .single()
 
     if (shopError || !shop) {
       return NextResponse.json({ error: "Neplatný API klíč" }, { status: 401 })

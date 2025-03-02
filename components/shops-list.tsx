@@ -2,25 +2,30 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Copy, MoreVertical, Store } from 'lucide-react'
-import { toast } from "sonner"
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Tables } from "@/lib/supabase/types"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useToast } from "@/hooks/use-toast" // Import useToast hook
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { ShopDetailDialog } from "@/components/shops/shop-detail-dialog"
+import { Eye, Power, Trash } from "lucide-react"
+import { toast } from "react-hot-toast"
 
 export function ShopsList() {
     const [shops, setShops] = useState<Tables<"shops">[]>([])
     const [isLoading, setIsLoading] = useState(true)
-    const [companyId, setCompanyId] = useState<string | null>(null)
+    const [selectedShopId, setSelectedShopId] = useState<string | null>(null)
     const supabase = createClientComponentClient()
-    const { toast: useToastHook } = useToast() // Use the useToast hook
 
-    // První useEffect pro získání company_id
     useEffect(() => {
-        const fetchCompanyId = async () => {
+        const fetchShops = async () => {
             try {
                 const { data: { user } } = await supabase.auth.getUser()
                 if (!user) return
@@ -31,192 +36,129 @@ export function ShopsList() {
                     .eq("user_id", user.id)
                     .single()
 
-                if (company) {
-                    setCompanyId(company.id)
-                }
-            } catch (error) {
-                console.error("Error fetching company:", error)
-            }
-        }
+                if (!company) return
 
-        fetchCompanyId()
-    }, [])
-
-    // Druhý useEffect pro načtení shopů, závislý na companyId
-    useEffect(() => {
-        if (!companyId) return
-
-        const fetchShops = async () => {
-            try {
-                const { data: shops, error } = await supabase
+                const { data: shops } = await supabase
                     .from("shops")
-                    .select("*")
-                    .eq("company_id", companyId)
+                    .select("*, verifications:verifications(count)")
+                    .eq("company_id", company.id)
                     .order("created_at", { ascending: false })
 
-                if (error) throw error
-                setShops(shops || [])
+                if (shops) {
+                    setShops(shops)
+                }
             } catch (error) {
                 console.error("Error fetching shops:", error)
-                toast.error("Nepodařilo se načíst seznam eshopů")
             } finally {
                 setIsLoading(false)
             }
         }
 
         fetchShops()
+    }, [supabase])
 
-        // Realtime subscription
-        const channel = supabase
-            .channel("shops_changes")
-            .on(
-                "postgres_changes",
-                {
-                    event: "*",
-                    schema: "public",
-                    table: "shops",
-                    filter: `company_id=eq.${companyId}`
-                },
-                (payload) => {
-                    if (payload.eventType === "INSERT") {
-                        setShops((current) => [payload.new as Tables<"shops">, ...current])
-                    } else if (payload.eventType === "DELETE") {
-                        setShops((current) => current.filter((shop) => shop.id !== payload.old.id))
-                    } else if (payload.eventType === "UPDATE") {
-                        setShops((current) =>
-                            current.map((shop) => (shop.id === payload.new.id ? (payload.new as Tables<"shops">) : shop))
-                        )
-                    }
-                }
-            )
-            .subscribe()
-
-        return () => {
-            channel.unsubscribe()
+    const handleStatusToggle = async (shopId: string, currentStatus: string) => {
+        const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
+        const result = await updateShopStatus(shopId, newStatus)
+        if (result.success) {
+            toast.success(`Status eshopu byl změněn na ${newStatus}`)
+            // Refresh dat
+            fetchShops()
+        } else {
+            toast.error(result.error || "Nepodařilo se změnit status")
         }
-    }, [companyId])
-
-    const copyApiKey = (apiKey: string) => {
-        navigator.clipboard.writeText(apiKey)
-        toast.success("API klíč byl zkopírován do schránky")
     }
 
-    const handleStatusChange = async (shopId: string, newStatus: "active" | "inactive") => {
-        try {
-            const result = await updateShopStatus(shopId, newStatus)
-            if (!result.success) {
-                throw new Error(result.error)
+    const handleDelete = async (shopId: string) => {
+        if (confirm("Opravdu chcete smazat tento eshop? Tato akce je nevratná.")) {
+            try {
+                const { error } = await supabase
+                    .from('shops')
+                    .delete()
+                    .eq('id', shopId)
+                
+                if (error) throw error
+                toast.success("Eshop byl úspěšně smazán")
+                fetchShops()
+            } catch (error) {
+                toast.error("Nepodařilo se smazat eshop")
             }
-            toast.success(`Status eshopu byl změněn na ${newStatus === "active" ? "aktivní" : "neaktivní"}`)
-        } catch (error) {
-            console.error("Error updating shop status:", error)
-            toast.error("Nepodařilo se změnit status eshopu")
         }
     }
-
-    console.log("ShopsList component rendering - isLoading:", isLoading, "shops.length:", shops.length); // LOG 11: ShopsList render
 
     if (isLoading) {
-        console.log("ShopsList - Loading state - rendering skeleton UI"); // LOG 12: ShopsList loading UI
-        return (
+        return <div>Načítání...</div>
+    }
+
+    return (
+        <>
             <div className="rounded-md border">
                 <Table>
                     <TableHeader>
                         <TableRow>
                             <TableHead>Název</TableHead>
                             <TableHead>URL</TableHead>
-                            <TableHead>API klíč</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
+                            <TableHead>API Klíč</TableHead>
+                            <TableHead>Verifikace</TableHead>
+                            <TableHead className="w-[200px]">Akce</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {[1, 2, 3].map((i) => (
-                            <TableRow key={i}>
+                        {shops.map((shop) => (
+                            <TableRow key={shop.id}>
+                                <TableCell>{shop.name}</TableCell>
+                                <TableCell>{shop.url}</TableCell>
                                 <TableCell>
-                                    <div className="h-6 w-24 animate-pulse rounded bg-muted"></div>
+                                    <Badge variant={shop.status === 'active' ? 'success' : 'destructive'}>
+                                        {shop.status === 'active' ? 'Aktivní' : 'Neaktivní'}
+                                    </Badge>
                                 </TableCell>
                                 <TableCell>
-                                    <div className="h-6 w-32 animate-pulse rounded bg-muted"></div>
+                                    <code className="rounded bg-muted px-2 py-1">{shop.api_key}</code>
                                 </TableCell>
+                                <TableCell>{(shop.verifications as any)?.count || 0}</TableCell>
                                 <TableCell>
-                                    <div className="h-6 w-40 animate-pulse rounded bg-muted"></div>
-                                </TableCell>
-                                <TableCell>
-                                    <div className="h-6 w-16 animate-pulse rounded bg-muted"></div>
-                                </TableCell>
-                                <TableCell>
-                                    <div className="h-6 w-8 animate-pulse rounded bg-muted"></div>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setSelectedShopId(shop.id)}
+                                        >
+                                            <Eye className="h-4 w-4 mr-1" />
+                                            Detail
+                                        </Button>
+                                        <Button
+                                            variant={shop.status === 'active' ? 'default' : 'secondary'}
+                                            size="sm"
+                                            onClick={() => handleStatusToggle(shop.id, shop.status)}
+                                        >
+                                            <Power className="h-4 w-4 mr-1" />
+                                            {shop.status === 'active' ? 'Deaktivovat' : 'Aktivovat'}
+                                        </Button>
+                                        <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={() => handleDelete(shop.id)}
+                                        >
+                                            <Trash className="h-4 w-4 mr-1" />
+                                            Smazat
+                                        </Button>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                 </Table>
             </div>
-        )
-    }
 
-    return (
-        <div className="rounded-md border">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Název</TableHead>
-                        <TableHead>URL</TableHead>
-                        <TableHead>API klíč</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {shops.length === 0 ? (
-                        <TableRow>
-                            <TableCell colSpan={5} className="text-center">
-                                Zatím nemáte žádné eshopy
-                            </TableCell>
-                        </TableRow>
-                    ) : (
-                        shops.map((shop) => (
-                            <TableRow key={shop.id}>
-                                <TableCell className="font-medium">
-                                    <div className="flex items-center gap-2">
-                                        <Store className="h-4 w-4" />
-                                        {shop.name}
-                                    </div>
-                                </TableCell>
-                                <TableCell>{shop.url}</TableCell>
-                                <TableCell>
-                                    <div className="flex items-center gap-2">
-                                        <code className="rounded bg-muted px-2 py-1">{shop.api_key}</code>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyApiKey(shop.api_key)}>
-                                            <Copy className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </TableCell>
-                                <TableCell>{shop.status === "active" ? "Aktivní" : "Neaktivní"}</TableCell>
-                                <TableCell>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                <MoreVertical className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            {shop.status === "active" ? (
-                                                <DropdownMenuItem onClick={() => handleStatusChange(shop.id, "inactive")}>
-                                                    Deaktivovat
-                                                </DropdownMenuItem>
-                                            ) : (
-                                                <DropdownMenuItem onClick={() => handleStatusChange(shop.id, "active")}>Aktivovat</DropdownMenuItem>
-                                            )}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        ))
-                    )}
-                </TableBody>
-            </Table>
-        </div>
+            {selectedShopId && (
+                <ShopDetailDialog
+                    shopId={selectedShopId}
+                    isOpen={!!selectedShopId}
+                    onClose={() => setSelectedShopId(null)}
+                />
+            )}
+        </>
     )
 }

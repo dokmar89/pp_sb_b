@@ -7,50 +7,52 @@ import { AddShopDialog } from "@/components/add-shop-dialog"
 import { ShopsList } from "@/components/shops-list"
 
 export default async function ShopsPage() {
-    console.log("ShopsPage component rendering"); // LOG 1: Component render start
-
-    const supabase = createServerComponentClient({ cookies });
-    console.log("createServerComponentClient initialized"); // LOG 2: Supabase client initialized
+    console.log("ShopsPage component rendering")
+    const supabase = createServerComponentClient({ cookies })
+    console.log("createServerComponentClient initialized")
 
     try {
         const {
             data: { session },
             error: sessionError,
-        } = await supabase.auth.getSession();
-        console.log("getSession() called"); // LOG 3: getSession() called
+        } = await supabase.auth.getSession()
+        console.log("getSession() called")
 
         if (sessionError) {
-            console.error("Error getting session:", sessionError); // LOG 4: Session error
-            console.log("Redirecting to login due to session error"); // LOG 5: Redirect due to session error
-            redirect("/auth/login");
+            console.error("Error getting session:", sessionError)
+            console.log("Redirecting to login due to session error")
+            redirect("/auth/login")
         }
 
         if (!session) {
-            console.warn("No session found"); // LOG 6: No session
-            console.log("Redirecting to login due to no session"); // LOG 7: Redirect due to no session
-            redirect("/auth/login");
+            console.warn("No session found")
+            console.log("Redirecting to login due to no session")
+            redirect("/auth/login")
         }
-
-        console.log("Session data:", session); // LOG 8: Session data - SUCCESS
-        console.log("User is authenticated, rendering ShopsPage content"); // LOG 9: Rendering ShopsPage content
 
         // Nově získáme companyId
         const { data: company, error: companyError } = await supabase
             .from("companies")
             .select("id")
             .eq("user_id", session.user.id)
-            .single();
+            .single()
 
         if (companyError) {
-            console.error("Error fetching company:", companyError);
-            redirect("/auth/login"); // Pokud se nepodaří získat company, přesměrujeme na login
+            console.error("Error fetching company:", companyError)
+            redirect("/auth/login")
         }
 
-        const companyId = company?.id;
+        const companyId = company?.id
 
-        if (!companyId) {
-          console.error("Company ID is null");
-          redirect("/auth/login"); // Pokud je companyId null, přesměrujeme na login
+        // Fetch shops for the company
+        const { data: shops, error: shopsError } = await supabase
+            .from("shops")
+            .select("*")
+            .eq("company_id", companyId)
+            .order("created_at", { ascending: false })
+
+        if (shopsError) {
+            throw shopsError
         }
 
         return (
@@ -58,17 +60,17 @@ export default async function ShopsPage() {
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold">Eshopy</h1>
-                        <p className="text-muted-foreground">Správa vašich eshopů a jejich API klíčů</p>
+                        <p className="text-muted-foreground">
+                            Správa vašich eshopů a jejich API klíčů
+                        </p>
                     </div>
-                    <AddShopDialog />
+                    <AddShopDialog companyId={companyId} />
                 </div>
-                <ShopsList companyId={companyId} />
+                <ShopsList shops={shops} />
             </div>
-        );
+        )
     } catch (error) {
-        console.error("Unexpected error in ShopsPage:", error); // LOG 10: Unexpected error
-        console.log("Redirecting to login due to unexpected error"); // LOG 11: Redirect due to unexpected error
-        redirect("/auth/login");
-        return null; // Add explicit return null to satisfy type checker
+        console.error("Error in ShopsPage:", error)
+        return <div>Došlo k chybě při načítání dat</div>
     }
 }

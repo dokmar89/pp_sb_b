@@ -58,41 +58,14 @@ export function LoginForm({ redirect = "/dashboard" }: LoginFormProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setIsLoading(true)
-      setDebugInfo("Začínám přihlašování...")
+      const { error } = await supabase.auth.signInWithPassword(values)
 
-      // Nejdřív přihlášení
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: values.email,
-        password: values.password,
-      })
+      if (error) throw error
 
-      if (authError) throw authError
-
-      // Pak získáme data společnosti
-      const { data: company, error: companyError } = await supabase
-        .from("companies")
-        .select("*")
-        .eq("email", values.email)
-        .single()
-
-      if (companyError) {
-        console.error("Company error:", companyError)
-        throw new Error("Nepodařilo se načíst data společnosti")
-      }
-
-      if (company.status !== "approved") {
-        throw new Error("Vaše registrace zatím nebyla schválena")
-      }
-
-      console.log("Auth successful:", authData)
-      console.log("Company data:", company)
-
-      // Přesměrování na dashboard
-      router.push(redirect || '/dashboard')
-      
+      router.push(redirect)
     } catch (error) {
       console.error("Login error:", error)
-      toast.error(error instanceof Error ? error.message : "Přihlášení se nezdařilo")
+      toast.error("Přihlášení se nezdařilo")
       setIsLoading(false)
     }
   }

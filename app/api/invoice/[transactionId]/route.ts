@@ -2,7 +2,7 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
-import { generateInvoice } from '@/lib/actions/generate-invoice'
+import { generateInvoicePDF } from '@/lib/actions/invoice'
 
 export async function GET(
   request: NextRequest,
@@ -41,15 +41,15 @@ export async function GET(
 
     console.log('Company found:', company)
 
-    // Generujeme PDF
-    const pdfBuffer = await generateInvoice(transaction, company)
+    // Generujeme PDF pomocí správné funkce
+    const pdfBuffer = await generateInvoicePDF(params.transactionId)
 
     // Vracíme PDF
     return new NextResponse(pdfBuffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="faktura-${transaction.id}.pdf"`
+        'Content-Disposition': `attachment; filename="faktura-${params.transactionId}.pdf"`
       }
     })
 

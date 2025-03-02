@@ -2,9 +2,7 @@ import type React from "react"
 import { cookies } from "next/headers"
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
 
-import { SidebarNav } from "@/components/sidebar-nav"
-import { UserButton } from "@/components/auth/user-button"
-import { DashboardNav } from "@/components/dashboard-nav"
+import { MainNav } from "@/components/nav/main-nav"
 
 export default async function DashboardLayout({
   children,
@@ -23,23 +21,12 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <div className="w-64 border-r bg-sidebar-background">
-        <SidebarNav />
-      </div>
-
-      {/* Main content */}
-      <div className="flex-1">
-        <div className="flex h-16 items-center justify-between border-b px-8">
-          <div className="flex items-center space-x-4">
-            <UserButton />
-          </div>
-        </div>
+      <MainNav />
+      <main className="flex-1">
         <div className="container p-8">
           {children}
         </div>
-      </div>
+      </main>
     </div>
   )
 }
-

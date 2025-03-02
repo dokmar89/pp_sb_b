@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 
-export async function generateInvoice(transaction: any, company: any) {
+export async function generateInvoicePDF(transaction: string, company: any) {
   try {
     const pdfDoc = await PDFDocument.create()
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica)

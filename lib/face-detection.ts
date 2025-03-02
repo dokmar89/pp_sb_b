@@ -50,11 +50,12 @@ export async function detectFace(videoElement: HTMLVideoElement): Promise<Detect
         .detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions())
         .withFaceLandmarks()
         .withAgeAndGender(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject({ 
-          typ: 'CHYBA_DETEKCE', 
-          zprava: 'Vypršel časový limit pro detekci' 
-        }), 5000)
+      new Promise((_, reject) =>
+        setTimeout(() =>
+          reject({
+            typ: 'CHYBA_DETEKCE',
+            zprava: 'Vypršel časový limit pro detekci'
+          }), 5000)
       )
     ]);
 
@@ -88,11 +89,10 @@ export async function detectFace(videoElement: HTMLVideoElement): Promise<Detect
       faceInPosition: isCentered && isLargeEnough,
       faceDetected: true,
     }
-
   } catch (error) {
-    console.error("Chyba při detekci obličeje:", error);
+    console.error("Chyba při detekci obličeje:", error)
     const detekceChyba = error as DetekceChyba;
-    
+
     return {
       age: null,
       detectionConfidence: 0,

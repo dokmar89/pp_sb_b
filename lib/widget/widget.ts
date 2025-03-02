@@ -1,4 +1,4 @@
-import type { WidgetConfig, CustomizationConfig } from "./types"
+import type { WidgetConfig, CustomizationConfig, VerificationResult } from "./types"
 
 class AgeVerificationWidget {
   private config: WidgetConfig
@@ -167,7 +167,7 @@ class AgeVerificationWidget {
     })
   }
 
-  private handleVerificationComplete(result: any) {
+  private handleVerificationComplete(result: VerificationResult) {
     if (this.config.onVerified) {
       this.config.onVerified(result)
     }
