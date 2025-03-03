@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 const formSchema = z.object({
   name: z.string().min(1, "Název společnosti je povinný"),
@@ -33,16 +33,26 @@ interface AccountFormProps {
 
 export function AccountForm({ company, readOnly = false }: AccountFormProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [initialValues, setInitialValues] = useState<{
+    name: string;
+    email: string;
+    street: string;
+    city: string;
+    postalCode: string;
+    ico: string;
+    dic: string;
+    phone: string;
+    contact_person: string;
+  } | null>(null);
 
-  // Split the address into street, city, and postal code
-  const addressParts = company.address ? company.address.split(', ') : ['', '', '']
-  const [street, city, postalCode] = addressParts.length >= 3 
-    ? addressParts 
-    : [...addressParts, ...Array(3 - addressParts.length).fill('')]
+  useEffect(() => {
+    // Split the address into street, city, and postal code
+    const addressParts = company.address ? company.address.split(', ') : ['', '', ''];
+    const [street, city, postalCode] = addressParts.length >= 3
+      ? addressParts
+      : [...addressParts, ...Array(3 - addressParts.length).fill('')];
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
+    setInitialValues({
       name: company.name,
       email: company.email,
       street: street,
@@ -52,17 +62,40 @@ export function AccountForm({ company, readOnly = false }: AccountFormProps) {
       dic: company.dic,
       phone: company.phone,
       contact_person: company.contact_person,
+    });
+  }, [company]);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: initialValues || { // Použijeme initialValues, pokud jsou dostupné
+      name: "",
+      email: "",
+      street: "",
+      city: "",
+      postalCode: "",
+      ico: "",
+      dic: "",
+      phone: "",
+      contact_person: "",
     },
-  })
+    mode: "onChange", // Spouštíme validaci při každé změně
+  });
+
+  // Aktualizujeme defaultValues ve formuláři, když se změní initialValues
+  useEffect(() => {
+    if (initialValues) {
+      form.reset(initialValues);
+    }
+  }, [initialValues, form.reset]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setIsLoading(true)
-      
+
       // Combine street, city, and postal code into a single address string
       const combinedAddress = `${values.street}, ${values.city}, ${values.postalCode}`
       console.log("Saving address:", combinedAddress)
-      
+
       const { data, error } = await supabase
         .from("companies")
         .update({
@@ -77,12 +110,12 @@ export function AccountForm({ company, readOnly = false }: AccountFormProps) {
         console.error("Error updating company:", error)
         throw error
       }
-      
+
       console.log("Update successful:", data)
-      
+
       // Reload the page to reflect the changes
       window.location.reload()
-      
+
       toast.success("Údaje společnosti byly úspěšně aktualizovány")
     } catch (error) {
       console.error("Error updating company:", error)
@@ -229,8 +262,8 @@ export function AccountForm({ company, readOnly = false }: AccountFormProps) {
           </CardContent>
           <CardFooter>
             {!readOnly && (
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={isLoading || !form.formState.isDirty}
               >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

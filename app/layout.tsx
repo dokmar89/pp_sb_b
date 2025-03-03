@@ -7,6 +7,12 @@ import "@/styles/globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
 
+export const metadata = {
+  title: 'PassProve - Ověření věku pro váš e-shop',
+  description: 'Jednoduché a spolehlivé řešení pro ověření věku vašich zákazníků.',
+  generator: 'PassProve'
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -22,10 +28,4 @@ export default function RootLayout({
       </body>
     </html>
   )
-}
-
-export const metadata = {
-  title: 'PassProve - Ověření věku pro váš e-shop',
-  description: 'Jednoduché a spolehlivé řešení pro ověření věku vašich zákazníků.',
-  generator: 'PassProve'
 }

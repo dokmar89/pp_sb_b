@@ -62,19 +62,43 @@ export async function createTicket(formData: z.infer<typeof ticketSchema>) {
 
 export async function addMessage(formData: z.infer<typeof messageSchema>) {
   try {
+    const supabase = createServerComponentClient({ cookies })
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session) {
+      throw new Error("Unauthorized")
+    }
+
+    // Get company ID for the current user
+    const { data: company } = await supabase
+      .from("companies")
+      .select("id")
+      .eq("user_id", session.user.id)
+      .single()
+
+    if (!company) {
+      throw new Error("Company not found")
+    }
+
+    const { data: user } = await supabase
+      .from("users")
+      .select("id")
+      .eq("id", session.user.id)
+      .single()
+
     const { data, error } = await supabaseAdmin
       .from("support_messages")
       .insert({
         ticket_id: formData.ticketId,
         message: formData.message,
-        is_staff: false,
+        is_staff: user !== null, // Ověřujeme, zda je uživatel z podpory
       })
       .select()
       .single()
 
     if (error) throw error
 
-    revalidatePath("/dashboard/support")
+    revalidatePath(`/dashboard/support/[ticketId]`, 'page')
     return { success: true, data }
   } catch (error) {
     console.error("Error adding message:", error)
@@ -87,6 +111,36 @@ export async function updateTicketStatus(
   status: "open" | "in_progress" | "resolved" | "closed"
 ) {
   try {
+    const supabase = createServerComponentClient({ cookies })
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session) {
+      throw new Error("Unauthorized")
+    }
+
+    // Get company ID for the current user
+    const { data: company } = await supabase
+      .from("companies")
+      .select("id")
+      .eq("user_id", session.user.id)
+      .single()
+
+    if (!company) {
+      throw new Error("Company not found")
+    }
+
+    const { data: ticket, error: ticketError } = await supabase
+      .from("support_tickets")
+      .select("company_id")
+      .eq("id", ticketId)
+      .single()
+
+    if (ticketError) throw ticketError
+
+    if (ticket.company_id !== company.id) {
+      throw new Error("Unauthorized to update this ticket")
+    }
+
     const { error } = await supabaseAdmin
       .from("support_tickets")
       .update({ status })
@@ -94,7 +148,7 @@ export async function updateTicketStatus(
 
     if (error) throw error
 
-    revalidatePath("/dashboard/support")
+    revalidatePath(`/dashboard/support/[ticketId]`, 'page')
     return { success: true }
   } catch (error) {
     console.error("Error updating ticket status:", error)

@@ -62,12 +62,12 @@ const navigation: NavigationItem[] = [
   },
   {
     title: "Podpora",
-    href: "/support",
+    href: "/dashboard/support",
     icon: HelpCircle
   },
   {
     title: "Instalace",
-    href: "/installation",
+    href: "/dashboard/installation",
     icon: Code2
   }
 ]

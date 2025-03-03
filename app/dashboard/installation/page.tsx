@@ -1,7 +1,21 @@
+import { cookies } from "next/headers"
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
+import { redirect } from "next/navigation"
+
 import { InstallationGuide } from "@/components/installation/installation-guide"
 import { InstallationTabs } from "@/components/installation/installation-tabs"
 
-export default function InstallationPage() {
+export default async function InstallationPage() {
+  const supabase = createServerComponentClient({ cookies })
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  if (!session) {
+    redirect("/auth/login")
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -13,4 +27,3 @@ export default function InstallationPage() {
     </div>
   )
 }
-

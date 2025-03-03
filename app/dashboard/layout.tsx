@@ -1,6 +1,7 @@
 import type React from "react"
 import { cookies } from "next/headers"
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
+import { redirect } from "next/navigation"
 
 import { MainNav } from "@/components/nav/main-nav"
 
@@ -16,7 +17,7 @@ export default async function DashboardLayout({
   } = await supabase.auth.getSession()
 
   if (!session) {
-    return null // This should be handled by middleware
+    redirect("/auth/login")
   }
 
   return (

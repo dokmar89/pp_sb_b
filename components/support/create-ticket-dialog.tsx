@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import * as z from "zod"
+import { useRouter } from "next/navigation"
 
 import { createTicket } from "@/lib/actions/support"
 import { Button } from "@/components/ui/button"
@@ -35,6 +36,7 @@ const priorities = [
 
 export function CreateTicketDialog() {
   const [open, setOpen] = useState(false)
+  const router = useRouter()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -56,6 +58,7 @@ export function CreateTicketDialog() {
       toast.success("Ticket byl úspěšně vytvořen")
       setOpen(false)
       form.reset()
+      router.refresh() // Aktualizace seznamu ticketů
     } catch (error) {
       console.error("Error creating ticket:", error)
       toast.error("Došlo k chybě při vytváření ticketu")
@@ -133,4 +136,3 @@ export function CreateTicketDialog() {
     </Dialog>
   )
 }
-

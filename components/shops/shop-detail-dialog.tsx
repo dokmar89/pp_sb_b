@@ -1,404 +1,290 @@
 "use client"
 
-import { useState, useRef } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, RefreshCw, AlertTriangle, Upload } from "lucide-react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { updateShopStatus, getShopDetails } from "@/lib/actions/shops"
-import { uploadLogo } from "@/lib/actions/upload"
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from '@/lib/supabase/types'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
+import { Copy, ExternalLink, CheckCircle, XCircle, Clock } from "lucide-react"
+import { formatDate } from "@/lib/utils"
+import { getShopDetails } from "@/lib/actions/shops"
 
-interface ShopDetails {
-  id: string
-  name: string
-  url: string
-  status: 'active' | 'inactive'
-  apiKey: string
-  integration_type: 'api' | 'widget' | 'plugin'
-  pricing_plan: 'contract' | 'no-contract'
-  verification_methods: string[]
-  logo_url?: string | null
-  stats: {
-    total_verifications: number
-    successful_verifications: number
-    failed_verifications: number
-    average_time: number
-  }
-}
-
-interface ShopDetailDialogProps {
+interface ShopDetailsDialogProps {
   shopId: string
-  isOpen: boolean
-  onClose: () => void
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
-const verificationMethodLabels = {
-  'bankid': 'BankID',
-  'mojeid': 'MojeID',
-  'facescan': 'Skenování obličeje',
-  'ocr': 'Skenování dokladů',
-  'revalidate': 'Opakované ověření'
-}
+export function ShopDetailsDialog({ shopId, open, onOpenChange }: ShopDetailsDialogProps) {
+  const [isLoading, setIsLoading] = useState(true)
+  const [shop, setShop] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
 
-const integrationTypeLabels = {
-  'api': 'REST API',
-  'widget': 'JavaScript Widget',
-  'plugin': 'Plugin pro e-shop'
-}
+  useEffect(() => {
+    if (open && shopId) {
+      const fetchShopDetails = async () => {
+        setIsLoading(true)
+        setError(null)
 
-const verificationPrices = {
-  'bankid': { contract: 15, noContract: 20 },
-  'mojeid': { contract: 12, noContract: 15 },
-  'facescan': { contract: 4, noContract: 5 },
-  'ocr': { contract: 8, noContract: 10 },
-  'revalidate': { contract: 1, noContract: 2 }
-}
-
-export function ShopDetailDialog({ shopId, isOpen, onClose }: ShopDetailDialogProps) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [isRegeneratingKey, setIsRegeneratingKey] = useState(false)
-  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
-  const [shopDetails, setShopDetails] = useState<ShopDetails | null>(null)
-  const [activeTab, setActiveTab] = useState("overview")
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const supabase = createClientComponentClient<Database>()
-
-  const loadShopDetails = async () => {
-    setIsLoading(true)
-    try {
-      const result = await getShopDetails(shopId)
-      if (result.success) {
-        setShopDetails(result.shop)
-      } else {
-        toast.error(result.error)
+        try {
+          const result = await getShopDetails(shopId);
+          if (result.success && result.shop) {
+            setShop(result.shop);
+          } else {
+            setError(result.error || "Nepodařilo se načíst detaily eshopu");
+            toast.error(result.error || "Nepodařilo se načíst detaily eshopu"); // Show error toast
+          }
+        } catch (error) {
+          console.error("Error fetching shop details:", error);
+          setError("Došlo k neočekávané chybě");
+          toast.error("Došlo k neočekávané chybě"); // Show error toast
+        } finally {
+          setIsLoading(false);
+        }
       }
-    } catch (error) {
-      toast.error("Nepodařilo se načíst detaily eshopu")
-    } finally {
-      setIsLoading(false)
+
+      fetchShopDetails()
+    }
+  }, [shopId, open])
+
+  const copyApiKey = () => {
+    if (shop?.apiKey) {
+      navigator.clipboard.writeText(shop.apiKey)
+      toast.success("API klíč byl zkopírován do schránky")
     }
   }
 
-  const handleStatusChange = async (newStatus: string) => {
-    try {
-      const result = await updateShopStatus(shopId, newStatus)
-      if (result.success) {
-        toast.success(`Status eshopu byl změněn na ${newStatus}`)
-        await loadShopDetails()
-      } else {
-        toast.error(result.error)
-      }
-    } catch (error) {
-      toast.error("Nepodařilo se změnit status eshopu")
+  const copyWidgetCode = () => {
+    if (shop?.apiKey) {
+      const code = `<script src="${process.env.NEXT_PUBLIC_APP_URL}/widget.js?apiKey=${shop.apiKey}"></script>`;
+      navigator.clipboard.writeText(code);
+      toast.success("Kód widgetu byl zkopírován do schránky");
     }
-  }
-
-  const handleRegenerateApiKey = async () => {
-    setIsRegeneratingKey(true)
-    try {
-      const result = await fetch(`/api/shops/${shopId}/regenerate-key`, {
-        method: 'POST',
-      })
-      const data = await result.json()
-      
-      if (data.success) {
-        toast.success("API klíč byl úspěšně obnoven")
-        await loadShopDetails()
-      } else {
-        throw new Error(data.error)
-      }
-    } catch (error) {
-      toast.error("Nepodařilo se obnovit API klíč")
-    } finally {
-      setIsRegeneratingKey(false)
-    }
-  }
-
-  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    setIsUploadingLogo(true)
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('shopId', shopId)
-
-      const result = await uploadLogo(formData)
-
-      if (result.success) {
-        toast.success('Logo bylo úspěšně nahráno')
-        await loadShopDetails() // Znovu načteme detaily pro zobrazení nového loga
-      } else {
-        throw new Error(result.error)
-      }
-    } catch (error) {
-      toast.error('Nepodařilo se nahrát logo')
-      console.error('Logo upload error:', error)
-    } finally {
-      setIsUploadingLogo(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '' // Reset input
-      }
-    }
-  }
-
-  const handleLogoRemove = async () => {
-    try {
-      const { error } = await supabase
-        .from('shops')
-        .update({ logo_url: null })
-        .eq('id', shopId)
-      
-      if (error) throw error
-      
-      toast.success('Logo bylo odstraněno')
-      await loadShopDetails()
-    } catch (error) {
-      toast.error('Nepodařilo se odstranit logo')
-    }
-  }
-
-  // Načtení detailů při otevření
-  useState(() => {
-    if (isOpen && shopId) {
-      loadShopDetails()
-    }
-  }, [isOpen, shopId])
-
-  if (!shopDetails && isLoading) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent>
-          <div className="flex justify-center items-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        </DialogContent>
-      </Dialog>
-    )
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Detail eshopu: {shopDetails?.name}</DialogTitle>
+          <DialogTitle>Detail eshopu</DialogTitle>
+          <DialogDescription>
+            Zobrazení detailních informací o eshopu
+          </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Přehled</TabsTrigger>
-            <TabsTrigger value="methods">Metody</TabsTrigger>
-            <TabsTrigger value="stats">Statistiky</TabsTrigger>
-            <TabsTrigger value="settings">Nastavení</TabsTrigger>
-          </TabsList>
+        {isLoading ? (
+          <div className="flex justify-center items-center py-8">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          </div>
+        ) : error ? (
+          <div className="py-4 text-center text-destructive">
+            {error}
+          </div>
+        ) : shop ? (
+          <Tabs defaultValue="overview">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="overview">Přehled</TabsTrigger>
+              <TabsTrigger value="integration">Integrace</TabsTrigger>
+              <TabsTrigger value="statistics">Statistiky</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="overview">
-            <Card>
-              <CardContent className="space-y-4 pt-6">
-                <div className="grid grid-cols-2 gap-4">
+            <TabsContent value="overview" className="space-y-4 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Název eshopu</Label>
+                  <div className="font-medium text-lg">{shop.name}</div>
+                </div>
+                <div>
+                  <Label>Status</Label>
                   <div>
-                    <p className="text-sm font-medium">URL</p>
-                    <p className="text-sm text-muted-foreground">{shopDetails?.url}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Status</p>
-                    <Badge variant={shopDetails?.status === 'active' ? 'success' : 'destructive'}>
-                      {shopDetails?.status === 'active' ? 'Aktivní' : 'Neaktivní'}
+                    <Badge variant={shop.status === "active" ? "default" : "outline"}>
+                      {shop.status === "active" ? "Aktivní" : "Neaktivní"}
                     </Badge>
                   </div>
-                  <div className="col-span-2">
-                    <p className="text-sm font-medium">API Klíč</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <code className="rounded bg-muted px-2 py-1 flex-1">{shopDetails?.apiKey}</code>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleRegenerateApiKey}
-                        disabled={isRegeneratingKey}
-                      >
-                        {isRegeneratingKey ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <RefreshCw className="h-4 w-4" />
-                        )}
-                      </Button>
+                </div>
+              </div>
+
+              <div>
+                <Label>URL eshopu</Label>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={shop.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    {shop.url.replace(/^https?:\/\//, '')}
+                    <ExternalLink className="ml-1 inline h-3 w-3" />
+                  </a>
+                </div>
+              </div>
+
+              <div>
+            	<Label>API klíč</Label>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 rounded bg-muted px-2 py-1 font-mono text-sm">
+                    {shop.apiKey}
+                  </code>
+                  <Button variant="outline" size="sm" onClick={copyApiKey}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Kopírovat
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <Label>Vytvořeno</Label>
+                <div>{formatDate(shop.createdAt)}</div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="integration" className="space-y-4 pt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>JavaScript Widget</CardTitle>
+                  <CardDescription>
+                    Nejjednodušší způsob integrace - stačí vložit tento kód do vašeho webu
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="rounded bg-muted p-4 font-mono text-sm">
+                      {`<script src="${process.env.NEXT_PUBLIC_APP_URL}/widget.js?apiKey=${shop.apiKey}"></script>`}
                     </div>
+                    <Button variant="outline" onClick={copyWidgetCode}>
+                      <Copy className="h-4 w-4 mr-2" />
+                      Kopírovat kód
+                    </Button>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    Regenerace API klíče způsobí, že všechny současné implementace přestanou fungovat.
-                  </AlertDescription>
-                </Alert>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="methods">
-            <Card>
-              <CardHeader>
-                <CardTitle>Konfigurace ověřování</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <h3 className="text-sm font-medium mb-2">Typ integrace</h3>
-                  <Badge variant="secondary">
-                    {integrationTypeLabels[shopDetails?.integration_type as keyof typeof integrationTypeLabels] || 'Neurčeno'}
-                  </Badge>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-medium mb-2">Cenový plán</h3>
-                  <Badge variant="secondary">
-                    {shopDetails?.pricing_plan === 'contract' ? 'Se smlouvou na 2 roky' : 'Bez smlouvy'}
-                  </Badge>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-medium mb-2">Povolené metody ověření</h3>
-                  <div className="grid gap-4">
-                    {(shopDetails?.verification_methods || []).map((method: string) => (
-                      <div key={method} className="flex items-center justify-between p-2 rounded-lg border">
-                        <div>
-                          <p className="font-medium">{verificationMethodLabels[method as keyof typeof verificationMethodLabels]}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Cena: {shopDetails?.pricing_plan === 'contract' 
-                              ? verificationPrices[method as keyof typeof verificationPrices].contract 
-                              : verificationPrices[method as keyof typeof verificationPrices].noContract} Kč
-                          </p>
-                        </div>
-                        <Badge variant="success">Aktivní</Badge>
-                      </div>
-                    ))}
-                    {(!shopDetails?.verification_methods || shopDetails.verification_methods.length === 0) && (
-                      <div className="text-center p-4 text-muted-foreground">
-                        Žádné metody ověření nejsou povoleny
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="stats">
-            <Card>
-              <CardHeader>
-                <CardTitle>Statistiky verifikací</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Celkem verifikací</p>
-                    <p className="text-2xl font-bold">{shopDetails?.stats.total_verifications}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Úspěšných</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {shopDetails?.stats.successful_verifications}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Neúspěšných</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      {shopDetails?.stats.failed_verifications}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Průměrný čas</p>
-                    <p className="text-2xl font-bold">{shopDetails?.stats.average_time}ms</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="settings">
-            <Card>
-              <CardContent className="space-y-6 pt-6">
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm font-medium mb-2">Status eshopu</p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant={shopDetails?.status === 'active' ? 'default' : 'outline'}
-                        onClick={() => handleStatusChange('active')}
-                      >
-                        Aktivovat
-                      </Button>
-                      <Button
-                        variant={shopDetails?.status === 'inactive' ? 'destructive' : 'outline'}
-                        onClick={() => handleStatusChange('inactive')}
-                      >
-                        Deaktivovat
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium">Logo eshopu</h3>
-                  <div className="flex items-start gap-4">
-                    {shopDetails?.logo_url && (
-                      <div className="relative w-24 h-24 border rounded-lg overflow-hidden">
-                        <img
-                          src={shopDetails.logo_url}
-                          alt="Shop logo"
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        accept="image/*"
-                        onChange={handleLogoUpload}
+              <Card>
+                <CardHeader>
+                  <CardTitle>REST API</CardTitle>
+                  <CardDescription>
+                    Pro pokročilou integraci můžete použít naše REST API
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Endpoint</Label>
+                      <Input
+                        readOnly
+                        value={`${process.env.NEXT_PUBLIC_APP_URL}/api/verify`}
+                        className="font-mono"
                       />
-                      <Button
-                        variant="outline"
-                        disabled={isUploadingLogo}
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        {isUploadingLogo ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Upload className="h-4 w-4 mr-2" />
-                        )}
-                        {shopDetails?.logo_url ? 'Změnit logo' : 'Nahrát logo'}
-                      </Button>
-                      {shopDetails?.logo_url && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          disabled={isUploadingLogo}
-                          onClick={handleLogoRemove}
+                    </div>
+                    <div>
+                      <Label>Autorizace</Label>
+                      <div className="rounded bg-muted p-4 font-mono text-sm">
+                        {`Authorization: Bearer ${shop.apiKey}`}
+                      </div>
+                    </div>
+                    <div>
+                      <Button variant="outline" asChild>
+                        <a
+                          href="https://docs.ageverification.cz" // Use a constant for documentation URL
+                          target="_blank"
+                          rel="noopener noreferrer"
                         >
-                          Odstranit logo
-                        </Button>
-                      )}
-                      <p className="text-sm text-muted-foreground">
-                        Podporované formáty: PNG, JPG, GIF (max. 2MB)
-                      </p>
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Zobrazit dokumentaci API
+                        </a>
+                      </Button>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="statistics" className="space-y-4 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Celkem ověření</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">
+                      {shop.stats?.total_verifications || 0}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Průměrný čas</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center">
+                      <Clock className="h-5 w-5 mr-2 text-muted-foreground" />
+                      <span className="text-3xl font-bold">
+                        {shop.stats?.average_time ? `${(shop.stats.average_time / 1000).toFixed(1)}s` : 'N/A'}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center">
+                      <CheckCircle className="h-5 w-5 mr-2 text-green-500" />
+                      Úspěšná ověření
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-green-500">
+                      {shop.stats?.successful_verifications || 0}
+                    </div>
+                    {shop.stats?.total_verifications > 0 && (
+                      <div className="text-sm text-muted-foreground">
+                        {Math.round((shop.stats.successful_verifications / shop.stats.total_verifications) * 100)}% úspěšnost
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center">
+                      <XCircle className="h-5 w-5 mr-2 text-red-500" />
+                      Neúspěšná ověření
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-red-500">
+                      {shop.stats?.failed_verifications || 0}
+                    </div>
+                    {shop.stats?.total_verifications > 0 && (
+                      <div className="text-sm text-muted-foreground">
+                        {Math.round((shop.stats.failed_verifications / shop.stats.total_verifications) * 100)}% neúspěšnost
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <div className="py-4 text-center text-muted-foreground">
+            Eshop nebyl nalezen
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )
-} 
+}

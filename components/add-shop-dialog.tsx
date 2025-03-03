@@ -58,7 +58,11 @@ const pricingPlans = [
   { value: "no-contract", label: "Bez smlouvy" },
 ]
 
-export function AddShopDialog() {
+interface AddShopDialogProps {
+  companyId: string;
+}
+
+export function AddShopDialog({ companyId }: AddShopDialogProps) {
   const [open, setOpen] = useState(false)
   const router = useRouter()
 
@@ -76,7 +80,10 @@ export function AddShopDialog() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      const result = await createShop(values)
+      const result = await createShop({
+        ...values,
+        companyId: companyId
+      })
       
       if (!result.success) {
         throw new Error(result.error)

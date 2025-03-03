@@ -18,41 +18,21 @@ export default async function ShopsPage() {
         } = await supabase.auth.getSession()
         console.log("getSession() called")
 
-        if (sessionError) {
-            console.error("Error getting session:", sessionError)
-            console.log("Redirecting to login due to session error")
+        if (sessionError || !session) {
+            console.log("Redirecting to login due to session error or no session")
             redirect("/auth/login")
         }
 
-        if (!session) {
-            console.warn("No session found")
-            console.log("Redirecting to login due to no session")
-            redirect("/auth/login")
-        }
-
-        // Nově získáme companyId
+        // Získáme companyId
         const { data: company, error: companyError } = await supabase
             .from("companies")
             .select("id")
             .eq("user_id", session.user.id)
             .single()
 
-        if (companyError) {
+        if (companyError || !company?.id) {
             console.error("Error fetching company:", companyError)
             redirect("/auth/login")
-        }
-
-        const companyId = company?.id
-
-        // Fetch shops for the company
-        const { data: shops, error: shopsError } = await supabase
-            .from("shops")
-            .select("*")
-            .eq("company_id", companyId)
-            .order("created_at", { ascending: false })
-
-        if (shopsError) {
-            throw shopsError
         }
 
         return (
@@ -64,9 +44,9 @@ export default async function ShopsPage() {
                             Správa vašich eshopů a jejich API klíčů
                         </p>
                     </div>
-                    <AddShopDialog companyId={companyId} />
+                    <AddShopDialog companyId={company.id} />
                 </div>
-                <ShopsList shops={shops} />
+                <ShopsList companyId={company.id} />
             </div>
         )
     } catch (error) {

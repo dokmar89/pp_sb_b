@@ -5,6 +5,7 @@ import { format } from "date-fns"
 import { cs } from "date-fns/locale"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 import { supabase } from "@/lib/supabase/client"
 import type { Tables } from "@/lib/supabase/types"
@@ -15,10 +16,12 @@ import { Badge } from "@/components/ui/badge"
 export function TicketsList() {
   const [tickets, setTickets] = useState<Tables<"support_tickets">[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     const fetchTickets = async () => {
       try {
+        setIsLoading(true)
         const { data, error } = await supabase
           .from("support_tickets")
           .select("*")
@@ -54,7 +57,7 @@ export function TicketsList() {
     return () => {
       channel.unsubscribe()
     }
-  }, [])
+  }, [router])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -169,4 +172,3 @@ export function TicketsList() {
     </div>
   )
 }
-
