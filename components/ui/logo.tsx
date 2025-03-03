@@ -21,7 +21,7 @@ export function Logo({ className = "" }: { className?: string }) {
 
   if (!mounted) {
     return (
-      <div className={`h-8 w-[120px] bg-muted animate-pulse rounded ${className}`} />
+      <div className={`aspect-[3.75/1] w-full bg-muted animate-pulse rounded ${className}`} />
     )
   }
 
@@ -29,13 +29,13 @@ export function Logo({ className = "" }: { className?: string }) {
   const logoSrc = logos[currentTheme as keyof typeof logos] || logos.system
 
   return (
-    <div className={className}>
+    <div className={`aspect-[3.75/1] ${className}`}>
       <Image
         src={logoSrc}
         alt="PassProve Logo"
-        width={120}
-        height={32}
-        className="h-8 w-auto"
+        width={160}
+        height={43}
+        className="w-full h-full object-contain"
         onError={() => setError(true)}
       />
       {error && (

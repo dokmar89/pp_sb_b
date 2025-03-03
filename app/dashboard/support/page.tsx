@@ -17,15 +17,17 @@ export default async function SupportPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Podpora</h1>
-          <p className="text-muted-foreground">Technická podpora a řešení problémů</p>
+    <div className="container py-8">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Podpora</h1>
+            <p className="text-muted-foreground">Centrum podpory a nápovědy</p>
+          </div>
+          <CreateTicketDialog />
         </div>
-        <CreateTicketDialog />
+        <TicketsList />
       </div>
-      <TicketsList />
     </div>
   )
 }

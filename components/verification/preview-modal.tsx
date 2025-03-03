@@ -93,6 +93,15 @@ export function PreviewModal({ shopId, open, onOpenChange, customization }: Prev
         <div style={rootStyles} className="verification-preview">
           {!selectedMethod ? (
             <div className="space-y-4 p-6">
+              {customization.logo && (
+                <div className="flex justify-center mb-4">
+                  <img 
+                    src={customization.logo} 
+                    alt="Logo e-shopu"
+                    className="h-12 object-contain" 
+                  />
+                </div>
+              )}
               <h2 className="text-2xl font-bold" style={{ color: "var(--primary-color)" }}>
                 Ověření věku
               </h2>

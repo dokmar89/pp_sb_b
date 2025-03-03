@@ -17,10 +17,10 @@ export default async function InstallationPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container py-8">
       <div>
         <h1 className="text-3xl font-bold">Instalace</h1>
-        <p className="text-muted-foreground">Návod k instalaci a implementaci věkové verifikace</p>
+        <p className="text-muted-foreground">Návod k instalaci a implementaci</p>
       </div>
       <InstallationTabs />
       <InstallationGuide />

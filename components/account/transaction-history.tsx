@@ -48,41 +48,7 @@ export function TransactionHistory({ companyId }: TransactionHistoryProps) {
 
       if (error) throw error
       
-      // Simulace dat pro ukázku
-      const mockData = [
-        {
-          id: "1",
-          description: "Platba za služby",
-          amount: 1200,
-          type: "debit",
-          status: "completed",
-          created_at: "2025-02-15T12:00:00",
-          invoice_url: "/invoices/invoice-1.pdf",
-          invoice_number: "INV-2025-001",
-          company_id: companyId
-        },
-        {
-          id: "2",
-          description: "Dobití kreditu",
-          amount: 5000,
-          type: "credit",
-          status: "completed",
-          created_at: "2025-02-10T10:30:00",
-          invoice_url: "/invoices/invoice-2.pdf",
-          invoice_number: "INV-2025-002",
-          company_id: companyId
-        },
-        {
-          id: "3",
-          description: "Platba za ověření",
-          amount: 800,
-          type: "debit",
-          status: "pending",
-          created_at: "2025-02-05T14:20:00",
-          company_id: companyId
-        }
-      ];
-      
+     
       setTransactions(data?.length ? data : mockData)
     } catch (error) {
       console.error("Error loading transactions:", error)
@@ -140,13 +106,6 @@ export function TransactionHistory({ companyId }: TransactionHistoryProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Historie transakcí</CardTitle>
-        <CardDescription>
-          Přehled všech transakcí na vašem účtu
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
         {isLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -235,7 +194,6 @@ export function TransactionHistory({ companyId }: TransactionHistoryProps) {
             Zatím zde nejsou žádné transakce
           </div>
         )}
-      </CardContent>
     </Card>
   )
 }

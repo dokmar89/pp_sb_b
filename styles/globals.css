@@ -2,8 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Importujeme modernější font */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 @layer utilities {
@@ -14,35 +17,44 @@ body {
 
 @layer base {
   :root {
+    /* Zachováváme brandové barvy, ale přidáváme modernější odstíny */
+    --brand-primary: 195 99% 16%;  /* #005253 - hlavní modrá */
+    --brand-secondary: 187 33% 70%; /* #94B7B8 - světle modrá */
+    --brand-accent: 44 100% 50%;   /* #FFB800 - žlutá */
+
+    /* Základní barvy */
     --background: 0 0% 100%;
-    --foreground: 195 99% 16%;
+    --foreground: var(--brand-primary);
 
-    --card: 0 0% 100%;
-    --card-foreground: 195 99% 16%;
-
+    /* Karty a popover */
+    --card: 195 30% 98%;
+    --card-foreground: var(--brand-primary);
     --popover: 0 0% 100%;
-    --popover-foreground: 195 99% 16%;
+    --popover-foreground: var(--brand-primary);
 
-    --primary: 195 99% 16%;
+    /* Primární a sekundární */
+    --primary: var(--brand-primary);
     --primary-foreground: 0 0% 100%;
+    --secondary: var(--brand-secondary);
+    --secondary-foreground: var(--brand-primary);
 
-    --secondary: 187 33% 70%;
-    --secondary-foreground: 195 99% 16%;
+    /* Doplňkové barvy */
+    --muted: 195 20% 95%;
+    --muted-foreground: 195 40% 30%;
+    --accent: var(--brand-accent);
+    --accent-foreground: var(--brand-primary);
 
-    --muted: 0 0% 62%;
-    --muted-foreground: 195 99% 16%;
+    /* Funkční barvy */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 142 72% 29%;
+    --success-foreground: 210 40% 98%;
 
-    --accent: 44 100% 50%;
-    --accent-foreground: 195 99% 16%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 187 33% 70%;
-    --input: 187 33% 70%;
-    --ring: 195 99% 16%;
-
-    --radius: 0.5rem;
+    /* Rozhraní */
+    --border: 195 30% 90%;
+    --input: 195 30% 90%;
+    --ring: var(--brand-primary);
+    --radius: 0.75rem;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -53,33 +65,33 @@ body {
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
   .dark {
-    --background: 195 99% 16%;
-    --foreground: 0 0% 100%;
+    --background: 195 40% 8%;
+    --foreground: 210 40% 98%;
 
-    --card: 195 99% 16%;
-    --card-foreground: 0 0% 100%;
+    --card: 195 35% 12%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 195 99% 16%;
-    --popover-foreground: 0 0% 100%;
+    --popover: 195 35% 12%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 187 33% 70%;
-    --primary-foreground: 195 99% 16%;
+    --primary: var(--brand-secondary);
+    --primary-foreground: var(--brand-primary);
 
-    --secondary: 44 100% 50%;
-    --secondary-foreground: 195 99% 16%;
+    --secondary: 195 35% 20%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 0 0% 62%;
-    --muted-foreground: 0 0% 100%;
+    --muted: 195 35% 20%;
+    --muted-foreground: 195 20% 75%;
 
-    --accent: 187 33% 70%;
-    --accent-foreground: 195 99% 16%;
+    --accent: var(--brand-accent);
+    --accent-foreground: var(--brand-primary);
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 187 33% 70%;
-    --input: 187 33% 70%;
-    --ring: 187 33% 70%;
+    --border: 195 35% 20%;
+    --input: 195 35% 20%;
+    --ring: var(--brand-secondary);
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;

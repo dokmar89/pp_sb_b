@@ -5,52 +5,60 @@ import { redirect } from "next/navigation"
 
 import { AddShopDialog } from "@/components/add-shop-dialog"
 import { ShopsList } from "@/components/shops-list"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default async function ShopsPage() {
-    console.log("ShopsPage component rendering")
     const supabase = createServerComponentClient({ cookies })
-    console.log("createServerComponentClient initialized")
 
-    try {
-        const {
-            data: { session },
-            error: sessionError,
-        } = await supabase.auth.getSession()
-        console.log("getSession() called")
+    const {
+        data: { session },
+    } = await supabase.auth.getSession()
 
-        if (sessionError || !session) {
-            console.log("Redirecting to login due to session error or no session")
-            redirect("/auth/login")
-        }
+    if (!session) {
+        redirect("/auth/login")
+    }
 
-        // Získáme companyId
-        const { data: company, error: companyError } = await supabase
-            .from("companies")
-            .select("id")
-            .eq("user_id", session.user.id)
-            .single()
+    // Získáme companyId
+    const { data: company } = await supabase
+        .from("companies")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .single()
 
-        if (companyError || !company?.id) {
-            console.error("Error fetching company:", companyError)
-            redirect("/auth/login")
-        }
-
+    if (!company?.id) {
         return (
-            <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold">Eshopy</h1>
-                        <p className="text-muted-foreground">
-                            Správa vašich eshopů a jejich API klíčů
-                        </p>
-                    </div>
-                    <AddShopDialog companyId={company.id} />
+            <div className="flex h-[80vh] items-center justify-center">
+                <div className="text-center">
+                    <h2 className="text-2xl font-semibold">Účet nenalezen</h2>
+                    <p className="text-muted-foreground">Nemáte přístup k firemnímu účtu</p>
                 </div>
-                <ShopsList companyId={company.id} />
             </div>
         )
-    } catch (error) {
-        console.error("Error in ShopsPage:", error)
-        return <div>Došlo k chybě při načítání dat</div>
     }
+
+    return (
+        <div className="container py-8">
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold">E-shopy</h1>
+                    <p className="text-muted-foreground mt-1">
+                        Správa vašich e-shopů
+                    </p>
+                </div>
+                <AddShopDialog companyId={company.id} />
+            </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Seznam e-shopů</CardTitle>
+                    <CardDescription>
+                        Přehled všech vašich připojených e-shopů
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ShopsList companyId={company.id} />
+                </CardContent>
+            </Card>
+        </div>
+    )
 }

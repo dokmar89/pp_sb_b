@@ -40,6 +40,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Trash2 } from "lucide-react"
+import { PlusCircle, MoreVertical, Mail, Shield, Briefcase } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { AddUserDialog } from "./add-user-dialog"
 
 const formSchema = z.object({
   email: z
@@ -61,6 +70,7 @@ interface User {
   position: string
   role: 'user' | 'owner'
   status: 'pending' | 'active' | 'inactive'
+  avatar: string
 }
 
 interface UserManagementProps {
@@ -201,149 +211,76 @@ export function UserManagement({ companyId }: UserManagementProps) {
   }
 
   return (
-    <div className="space-y-8">
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="first_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Jméno</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="last_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Příjmení</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input {...field} type="email" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="position"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Pozice</FormLabel>
-                <FormControl>
-                  <Input {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Přidávám..." : "Přidat uživatele"}
-          </Button>
-        </form>
-      </Form>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold tracking-tight">Uživatelé</h2>
+          <p className="text-sm text-muted-foreground">
+            Celkem uživatelů: {users.length}
+          </p>
+        </div>
+        <AddUserDialog onSubmit={onSubmit} />
+      </div>
 
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Seznam uživatelů</h3>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Jméno</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Pozice</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Akce</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>{user.first_name} {user.last_name}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>{user.position}</TableCell>
-                <TableCell>
-                  <Badge variant={user.role === "owner" ? "default" : "secondary"}>
-                    {user.role === "owner" ? "Vlastník" : "Člen"}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge 
-                    variant={
-                      user.status === "active" ? "success" : 
-                      user.status === "pending" ? "warning" : 
-                      "destructive"
-                    }
+      <div className="divide-y divide-border rounded-lg border">
+        {users.map((user) => (
+          <div
+            key={user.id}
+            className="flex items-center justify-between p-4 hover:bg-muted/50"
+          >
+            <div className="flex items-center gap-4">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={user.avatar} />
+                <AvatarFallback className="bg-primary/10">
+                  {user.first_name.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <div className="font-medium">{user.first_name} {user.last_name}</div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Mail className="h-3 w-3" />
+                  {user.email}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <Badge 
+                variant="secondary"
+                className="flex items-center gap-1"
+              >
+                <Briefcase className="h-3 w-3" />
+                {user.position}
+              </Badge>
+              
+              <Badge 
+                variant={user.status === "active" ? "success" : "secondary"}
+                className="flex items-center gap-1"
+              >
+                {user.status === "active" ? "Aktivní" : "Neaktivní"}
+              </Badge>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => toggleUserStatus(user.id, user.status)}>
+                    {user.status === "active" ? "Deaktivovat" : "Aktivovat"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => deleteUser(user.id)}
+                    className="text-destructive"
                   >
-                    {user.status === "active" ? "Aktivní" : 
-                     user.status === "pending" ? "Čeká na potvrzení" : 
-                     "Neaktivní"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      onClick={() => toggleUserStatus(user.id, user.status)}
-                      disabled={user.role === "owner"}
-                    >
-                      {user.status === "active" ? "Deaktivovat" : "Aktivovat"}
-                    </Button>
-
-                    {user.role !== "owner" && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Smazat uživatele</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Opravdu chcete smazat uživatele {user.first_name} {user.last_name}?
-                              Tuto akci nelze vrátit zpět.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => deleteUser(user.id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Smazat
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                    Smazat uživatele
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

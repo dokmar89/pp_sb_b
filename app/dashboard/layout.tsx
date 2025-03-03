@@ -2,8 +2,11 @@ import type React from "react"
 import { cookies } from "next/headers"
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
 import { redirect } from "next/navigation"
+import { LogOut } from "lucide-react"
 
 import { MainNav } from "@/components/nav/main-nav"
+import { ModeToggle } from "@/components/mode-toggle"
+import { Button } from "@/components/ui/button"
 
 export default async function DashboardLayout({
   children,
@@ -23,11 +26,25 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen">
       <MainNav />
-      <main className="flex-1">
-        <div className="container p-8">
-          {children}
+      <div className="flex-1">
+        <div className="h-16 border-b border-border/40 flex items-center justify-end px-6 gap-2">
+          <ModeToggle />
+          <form action="/auth/signout" method="post">
+            <Button 
+              type="submit"
+              variant="ghost" 
+              size="icon"
+              className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="sr-only">Odhlásit se</span>
+            </Button>
+          </form>
         </div>
-      </main>
+        <main>
+          {children}
+        </main>
+      </div>
     </div>
   )
 }
