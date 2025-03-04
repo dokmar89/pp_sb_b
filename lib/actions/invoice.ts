@@ -17,7 +17,7 @@ interface InvoiceData {
 export async function generateInvoicePDF(transactionId: string): Promise<Buffer> {
   const supabase = createServerComponentClient({ cookies })
 
-  // Získání dat transakce a spolecnosti
+  // Získání dat transakce a společnosti
   const { data: transaction } = await supabase
     .from("wallet_transactions")
     .select(`
@@ -44,13 +44,15 @@ export async function generateInvoicePDF(transactionId: string): Promise<Buffer>
     .eq("company_id", transaction.companies?.id)
     .single()
 
-  // Použijeme fakturační údaje, pokud existují, jinak použijeme údaje společnosti
+    // Použijeme ID transakce jako číslo faktury (je už číselné)
+  const invoiceNumber = transaction.invoice_number || transaction.id;
+  
   const invoiceData: InvoiceData = {
-    invoiceNumber: transaction.invoice_number || `INV-${transactionId.substring(0, 8)}`,
-    companyName: billingInfo?.name || transaction.companies?.name || "Neznáma spolecnost",
+    invoiceNumber,
+    companyName: billingInfo?.name || transaction.companies?.name || "Neznáma společnost",
     companyAddress: billingInfo?.address || transaction.companies?.address || "Adresa neuvedena",
-    companyIco: billingInfo?.ico || transaction.companies?.ico || "IcO neuvedeno",
-    companyDic: billingInfo?.dic || transaction.companies?.dic || "DIc neuvedeno",
+    companyIco: billingInfo?.ico || transaction.companies?.ico || "IČO neuvedeno",
+    companyDic: billingInfo?.dic || transaction.companies?.dic || "DIČ neuvedeno",
     amount: Math.abs(transaction.amount || 0),
     date: new Date(transaction.created_at),
   }
@@ -60,22 +62,27 @@ export async function generateInvoicePDF(transactionId: string): Promise<Buffer>
   const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman)
   const timesRomanBoldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold)
   
-  const page = pdfDoc.addPage([595.28, 841.89]) // A4 size
+  const page = pdfDoc.addPage([595.28, 841.89]) // A4
   const { width, height } = page.getSize()
   
-  // Pomocné funkce pro kreslení textu
-  const drawText = (text: string, x: number, y: number, size = 12, isBold = false, align = 'left') => {
+  // Pomocná funkce pro kreslení textu
+  const drawText = (text: string, x: number, y: number, size = 12, isBold = false, align: "left" | "center" | "right" = "left") => {
     const font = isBold ? timesRomanBoldFont : timesRomanFont
-    const textWidth = font.widthOfTextAtSize(text, size)
-    let xPos = x
     
-    if (align === 'center') {
+    // Normalizace textu pro PDF
+    const normalizedText = text
+      .normalize('NFKD') // Normalizace Unicode
+      .replace(/[^\x00-\x7F]/g, '') // Odstranění diakritiky
+      .replace(/\s+/g, ' ') // Normalizace mezer
+    
+    const textWidth = font.widthOfTextAtSize(normalizedText, size)
+    let xPos = x
+    if (align === "center") {
       xPos = x - textWidth / 2
-    } else if (align === 'right') {
+    } else if (align === "right") {
       xPos = x - textWidth
     }
-    
-    page.drawText(text, {
+    page.drawText(normalizedText, {
       x: xPos,
       y: height - y,
       size,
@@ -83,30 +90,30 @@ export async function generateInvoicePDF(transactionId: string): Promise<Buffer>
     })
   }
   
-  // Hlavicka faktury
-  drawText('FAKTURA', width / 2, 50, 24, true, 'center')
-  drawText(`císlo faktury: ${invoiceData.invoiceNumber}`, 50, 100, 12)
-  drawText(`Datum vystaveni: ${invoiceData.date.toLocaleDateString("cs-CZ")}`, 50, 120, 12)
+  // Hlavička faktury
+  drawText('FAKTURA - DAŇOVÝ DOKLAD', width / 2, 50, 24, true, 'center')
+  drawText(`Číslo faktury: ${invoiceData.invoiceNumber}`, 50, 100, 12)
+  drawText(`Datum vystavení: ${invoiceData.date.toLocaleDateString("cs-CZ")}`, 50, 120, 12)
   
   // Dodavatel
   drawText('Dodavatel:', 50, 160, 14, true)
   drawText('PassProve s.r.o.', 50, 180, 12)
-  drawText('Príkladová 123', 50, 200, 12)
+  drawText('Příkladová 123', 50, 200, 12)
   drawText('110 00 Praha 1', 50, 220, 12)
-  drawText('IcO: 12345678', 50, 240, 12)
-  drawText('DIc: CZ12345678', 50, 260, 12)
+  drawText('IČO: 12345678', 50, 240, 12)
+  drawText('DIČ: CZ12345678', 50, 260, 12)
   
   // Odběratel
-  drawText('Odberatel:', 300, 160, 14, true)
+  drawText('Odběratel:', 300, 160, 14, true)
   drawText(invoiceData.companyName, 300, 180, 12)
   drawText(invoiceData.companyAddress, 300, 200, 12)
-  drawText(`IcO: ${invoiceData.companyIco}`, 300, 220, 12)
-  drawText(`DIc: ${invoiceData.companyDic}`, 300, 240, 12)
+  drawText(`IČO: ${invoiceData.companyIco}`, 300, 220, 12)
+  drawText(`DIČ: ${invoiceData.companyDic}`, 300, 240, 12)
   
   // Položky faktury
-  drawText('Polozky:', 50, 320, 14, true)
+  drawText('Položky:', 50, 320, 14, true)
   
-  // Hlavicka tabulky
+  // Hlavička tabulky
   page.drawRectangle({
     x: 50,
     y: height - 350,
@@ -118,26 +125,36 @@ export async function generateInvoicePDF(transactionId: string): Promise<Buffer>
   drawText('Položka', 60, 365, 12, true)
   drawText('Množství', 200, 365, 12, true)
   drawText('Cena bez DPH', 300, 365, 12, true)
-  drawText('Celkem bez DPH', 420, 365, 12, true)
+  drawText('DPH 21%', 400, 365, 12, true)
+  drawText('Celkem s DPH', 500, 365, 12, true)
   
-  // Položka
-  drawText('Dobití kreditu', 60, 395, 12)
-  drawText('1', 200, 395, 12)
-  drawText(`${invoiceData.amount.toFixed(2)} Kc`, 300, 395, 12)
-  drawText(`${invoiceData.amount.toFixed(2)} Kc`, 420, 395, 12)
-  
-  // Soucty
+  // Fakturační položka
   const dph = invoiceData.amount * 0.21
   const total = invoiceData.amount + dph
+
+  drawText('Dobití kreditu', 60, 395, 12)
+  drawText('1', 200, 395, 12)
+  drawText(`${invoiceData.amount.toFixed(2)} Kč`, 300, 395, 12)
+  drawText(`${dph.toFixed(2)} Kč`, 400, 395, 12)
+  drawText(`${total.toFixed(2)} Kč`, 500, 395, 12)
   
-  drawText(`Základ DPH: ${invoiceData.amount.toFixed(2)} Kc`, width - 50, 450, 12, false, 'right')
-  drawText(`DPH 21%: ${dph.toFixed(2)} Kc`, width - 50, 470, 12, false, 'right')
-  drawText(`Celkem s DPH: ${total.toFixed(2)} Kc`, width - 50, 490, 12, true, 'right')
+  // Součty
+  drawText('Rekapitulace:', 50, 450, 14, true)
+  drawText(`Základ DPH: ${invoiceData.amount.toFixed(2)} Kč`, width - 50, 480, 12, false, 'right')
+  drawText(`DPH 21%: ${dph.toFixed(2)} Kč`, width - 50, 500, 12, false, 'right')
+  drawText(`Celkem k úhradě: ${total.toFixed(2)} Kč`, width - 50, 520, 14, true, 'right')
   
-  // Paticka
-  drawText('Faktura byla vystavena elektronicky a je platná bez podpisu a razítka.', width / 2, 550, 10, false, 'center')
+  // Platební údaje
+  drawText('Platební údaje:', 50, 580, 14, true)
+  drawText('Číslo účtu: 2702945534/2010', 50, 600, 12)
+  drawText(`Variabilní symbol: ${invoiceData.invoiceNumber}`, 50, 620, 12)
+  drawText(`Částka k úhradě: ${total.toFixed(2)} Kč`, 50, 640, 12)
   
-  // Finalizace dokumentu
+  // QR kód pro platbu můžete přidat zde, pokud je potřeba
+  
+  // Patička
+  drawText('Faktura byla vystavena elektronicky a je platná bez podpisu a razítka.', width / 2, height - 50, 10, false, 'center')
+  
   const pdfBytes = await pdfDoc.save()
   return Buffer.from(pdfBytes)
 }

@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2, Download, Eye } from "lucide-react"
 import { toast } from "sonner"
 import { formatDate } from "@/lib/utils"
+import { CheckPaymentButton } from "@/components/check-payment-button"
+import { useRouter } from 'next/navigation'
 
 interface Transaction {
   id: string
@@ -32,6 +34,7 @@ export function TransactionHistory({ companyId }: TransactionHistoryProps) {
   const [isDownloading, setIsDownloading] = useState<string | null>(null)
   const [isViewing, setIsViewing] = useState<string | null>(null)
   const supabase = createClientComponentClient()
+  const router = useRouter()
 
   useEffect(() => {
     loadTransactions()
@@ -183,6 +186,16 @@ export function TransactionHistory({ companyId }: TransactionHistoryProps) {
                           Stáhnout
                         </Button>
                       </div>
+                    )}
+                    {transaction.status === "pending" && (
+                      <TableCell>
+                        <CheckPaymentButton 
+                          transactionNumber={transaction.transaction_number}
+                          onPaymentConfirmed={() => {
+                            router.refresh()
+                          }}
+                        />
+                      </TableCell>
                     )}
                   </TableCell>
                 </TableRow>

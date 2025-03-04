@@ -1,29 +1,59 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { supabaseAdmin } from '../supabase/server'
 
-export async function generateInvoicePDF(transaction: string, company: any) {
-  try {
-    const pdfDoc = await PDFDocument.create()
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-    const page = pdfDoc.addPage([595.28, 841.89]) // A4
-    const { width, height } = page.getSize()
+export async function generateInvoicePDF(transactionId: string) {
+  const { data: transaction, error: transactionError } = await supabaseAdmin
+    .from('wallet_transactions')
+    .select(`
+      *,
+companies (
+        name,
+        ico,
+        dic,
+        street,
+        city,
+        zip,
+        country
+      )
+    `)
+    .eq('id', transactionId)
+    .single()
+ 
+    if (transactionError || !transaction) {
+      console.error('Chyba při načítání transakce:', transactionError)
+      throw new Error('Transakce nenalezena')
+    }
+
+const invoiceNumber = transaction.transaction_number;
+const company = transaction.companies;
+const pdfDoc = await PDFDocument.create()
+const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+const page = pdfDoc.addPage([595.28, 841.89]) // A4
+const { width, height } = page.getSize()
 
     // PassProve brand barva (tmavě zeleno-modrá)
     const brandColor = rgb(0.0, 0.32, 0.33)  // Přibližný odstín #005253
 
-    // Pomocné funkce pro pozicování
-    const drawText = (text: string, x: number, y: number, size = 10, bold = false) => {
-      page.drawText(text, {
+    // Funkce pro kreslení textu s podporou speciálních znaků
+    const drawText = (text: string, x: number, y: number, size: number, bold = false) => {
+      const encodedText = text
+        .normalize('NFKD') // Normalizace Unicode
+        .replace(/[^\x00-\x7F]/g, '') // Odstranění diakritiky
+        .replace(/\s+/g, ' ') // Normalizace mezer
+      
+      page.drawText(encodedText, {
         x,
         y: height - y,
         size,
         font: bold ? boldFont : font,
+        color: rgb(0, 0, 0)
       })
     }
 
     // Záhlaví faktury
     drawText('FAKTURA - Danovy doklad', width / 2 - 80, 80, 20, true)
-    drawText(`Cislo faktury (ID transakce): ${transaction.id}`, width / 2 - 50, 110, 12)
+    drawText(`Cislo faktury (ID transakce): ${invoiceNumber}`, width / 2 - 50, 110, 12)
 
     // Brand pruh pod záhlavím
     page.drawRectangle({
@@ -44,10 +74,10 @@ export async function generateInvoicePDF(transaction: string, company: any) {
 
     // Odběratel box
     drawText('ODBERATEL:', width - 250, 180, 12, true)
-    drawText(company.name?.replace(/[^\x00-\x7F]/g, "") || '', width - 250, 200)
-    drawText(company.address?.replace(/[^\x00-\x7F]/g, "") || '', width - 250, 220)
-    drawText(`ICO: ${company.ico || ''}`, width - 250, 240)
-    drawText(`DIC: ${company.dic || ''}`, width - 250, 260)
+    drawText(transaction.companies.name?.replace(/[^\x00-\x7F]/g, "") || '', width - 250, 200)
+    drawText(transaction.companies.street?.replace(/[^\x00-\x7F]/g, "") || '', width - 250, 220)
+    drawText(`ICO: ${transaction.companies.ico || ''}`, width - 250, 240)
+    drawText(`DIC: ${transaction.companies.dic || ''}`, width - 250, 260)
 
     // Detaily faktury
     const date = new Date().toLocaleDateString('en-GB')
@@ -123,4 +153,4 @@ export async function generateInvoicePDF(transaction: string, company: any) {
     console.error('Error generating invoice:', error)
     throw error
   }
-} 
+  
