@@ -26,9 +26,11 @@ interface Props {
     secondary_color: string
     button_style: string
   }
+  onComplete?: (result: any) => void
+  onError?: (error: Error) => void
 }
 
-export function FaceScanStep({ onBack, apiKey, customization }: Props) {
+export function FaceScanStep({ onBack, apiKey, customization, onComplete, onError }: Props) {
   const [isCameraActive, setIsCameraActive] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
   const [isModelLoading, setIsModelLoading] = useState(true)
@@ -79,7 +81,7 @@ export function FaceScanStep({ onBack, apiKey, customization }: Props) {
           console.error("Error enumerating devices:", err);
           setCameraError("Nepodařilo se zjistit dostupné kamery. Zkuste povolit přístup ke kameře v nastavení prohlížeče.");
         });
-    } else {
+        
       console.error("getUserMedia not supported");
       setCameraError("Váš prohlížeč nepodporuje přístup ke kameře. Zkuste použít jiný prohlížeč, například Chrome nebo Firefox.");
     }
@@ -212,105 +214,121 @@ export function FaceScanStep({ onBack, apiKey, customization }: Props) {
   };
 
   const startDetection = () => {
-    if (!videoRef.current || !canvasRef.current) return
+    if (!videoRef.current || !canvasRef.current) {
+      console.error("Video or canvas ref is null");
+      return;
+    }
 
-    setIsScanning(true)
-    detectionCountRef.current = 0
-    ageAccumulatorRef.current = []
-    setScanningProgress(0)
+    console.log("Starting detection with video:", videoRef.current);
+    console.log("Video ready state:", videoRef.current.readyState);
+    console.log("Video dimensions:", videoRef.current.videoWidth, "x", videoRef.current.videoHeight);
 
-    // Inicializace canvasu před detekcí
+    setIsScanning(true);
+    detectionCountRef.current = 0;
+    ageAccumulatorRef.current = [];
+    setScanningProgress(0);
+
+    // Initialize canvas before detection
     initCanvas();
     
-    // Nastavíme timeout pro detekci - pokud se nepodaří detekovat obličej do 30 sekund, ukončíme detekci
+    // Set timeout for detection - if no face is detected within 20 seconds, stop detection
     const detectionTimeout = setTimeout(() => {
       if (detectionCountRef.current === 0) {
         console.log("Detection timeout - no face detected");
         stopDetection();
         toast.error("Nepodařilo se detekovat obličej. Zkuste to prosím znovu s lepším osvětlením a ujistěte se, že je váš obličej viditelný.");
       }
-    }, 30000);
+    }, 20000);
 
     const detectFrame = async () => {
-      if (!videoRef.current || !canvasRef.current) return
+      if (!videoRef.current || !canvasRef.current) {
+        console.error("Video or canvas ref is null in detectFrame");
+        return;
+      }
 
       try {
-        console.log('Starting face detection frame')
-        const result = await detectFace(videoRef.current)
-        console.log('Detection result:', result)
+        console.log('Starting face detection frame');
+        const result = await detectFace(videoRef.current);
+        console.log('Detection result:', result);
 
-        setFaceDetected(result.faceDetected)
-        setFaceInPosition(result.faceInPosition)
+        setFaceDetected(result.faceDetected);
+        setFaceInPosition(result.faceInPosition);
 
-        const ctx = canvasRef.current.getContext('2d')
+        const ctx = canvasRef.current.getContext('2d');
         if (ctx) {
-          console.log('Drawing face detection guide')
-          // Zajistíme, že canvas má správné rozměry
+          // Ensure canvas has correct dimensions
           if (canvasRef.current.width !== videoRef.current.videoWidth || 
               canvasRef.current.height !== videoRef.current.videoHeight) {
+            console.log("Adjusting canvas dimensions to match video");
             canvasRef.current.width = videoRef.current.videoWidth || videoRef.current.clientWidth;
             canvasRef.current.height = videoRef.current.videoHeight || videoRef.current.clientHeight;
           }
           
+          // Draw the guide with current detection state
           drawFaceDetectionGuide(ctx, result.faceDetected, result.faceInPosition, {
             primaryColor: customization?.primary_color,
             secondaryColor: customization?.secondary_color,
-          })
-        } else {
-          console.error('Could not get canvas context')
+          });
         }
 
         // Process detection results
-        if (result.age !== null && result.faceInPosition && result.detectionConfidence > 0.3) { // Snížení prahu pro detekci
-          ageAccumulatorRef.current.push(result.age)
-          detectionCountRef.current++
+        if (result.faceDetected && result.faceInPosition) {
+          // If face is detected and in position, add age to accumulator
+          if (result.age !== null) {
+            ageAccumulatorRef.current.push(result.age);
+            detectionCountRef.current++;
 
-          // Update progress bar
-          const progress = Math.min((detectionCountRef.current / 10) * 100, 100) // Snížení počtu vzorků pro rychlejší detekci
-          setScanningProgress(progress)
+            // Update progress bar - now requires 5 samples
+            const progress = Math.min((detectionCountRef.current / 5) * 100, 100);
+            setScanningProgress(progress);
 
-          // If we have enough samples, calculate average age
-          if (detectionCountRef.current >= 10) { // Snížení počtu vzorků pro rychlejší detekci
-            clearTimeout(detectionTimeout); // Zrušení timeoutu
-            
-            const { averageAge, confidence } = calculateAgeConfidence(ageAccumulatorRef.current)
+            console.log(`Detection progress: ${detectionCountRef.current}/5 samples collected`);
 
-            if (confidence < 0.5) { // Snížení prahu pro confidence
-              toast.error('Nepodařilo se spolehlivě určit věk, zkuste to prosím znovu')
-              stopDetection()
-              return
+            // If we have enough samples (5), calculate average age
+            if (detectionCountRef.current >= 5) {
+              clearTimeout(detectionTimeout);
+              
+              const { averageAge, confidence } = calculateAgeConfidence(ageAccumulatorRef.current);
+              console.log("Detection complete, average age:", averageAge, "confidence:", confidence);
+
+              // Require reasonable confidence
+              if (confidence < 0.4) {
+                toast.error('Nepodařilo se spolehlivě určit věk, zkuste to prosím znovu');
+                stopDetection();
+                return;
+              }
+
+              setDetectedAge(averageAge);
+              const result = getAgeVerificationResult(averageAge);
+              setVerificationResult(result);
+
+              if (result === 'uncertain') {
+                setShowUncertainDialog(true);
+              }
+
+              stopDetection();
+              return;
             }
-
-            setDetectedAge(averageAge)
-            const result = getAgeVerificationResult(averageAge)
-            setVerificationResult(result)
-
-            if (result === 'uncertain') {
-              setShowUncertainDialog(true)
-            }
-
-            stopDetection()
-            return
           }
         }
 
         // Continue detection loop
-        animationRef.current = requestAnimationFrame(detectFrame)
+        animationRef.current = requestAnimationFrame(detectFrame);
       } catch (error) {
-        console.error('Detection error:', error)
-        clearTimeout(detectionTimeout); // Zrušení timeoutu
-        stopDetection()
-        toast.error('Došlo k chybě při detekci obličeje')
+        console.error('Detection error:', error);
+        clearTimeout(detectionTimeout);
+        stopDetection();
+        toast.error('Došlo k chybě při detekci obličeje');
         setCameraError('Došlo k chybě při detekci obličeje. Zkuste to prosím znovu nebo použijte jinou metodu ověření.');
       }
-    }
+    };
 
-    detectFrame()
+    detectFrame();
     
     return () => {
-      clearTimeout(detectionTimeout); // Zrušení timeoutu při ukončení
-    }
-  }
+      clearTimeout(detectionTimeout);
+    };
+  };
 
   const stopDetection = () => {
     if (animationRef.current) {

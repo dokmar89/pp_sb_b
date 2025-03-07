@@ -18,6 +18,8 @@ interface Props {
     secondary_color: string
     button_style: string
   }
+  onComplete?: (result: any) => void
+  onError?: (error: Error) => void
 }
 
 export function IDScanStep({ onBack, apiKey, verificationId, customization }: Props) {

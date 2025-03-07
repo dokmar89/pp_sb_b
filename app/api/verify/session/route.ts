@@ -6,40 +6,91 @@ import { v4 as uuidv4 } from "uuid"
 // Create a new session or get an existing one
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
-    const body = await request.json()
-    const { shop_id, verification_id } = body
-
-    if (!shop_id) {
-      return NextResponse.json({ error: "Chybějící parametry" }, { status: 400 })
+    // Parsování požadavku
+    const requestData = await request.json()
+    console.log("Received request data:", requestData)
+    
+    // Získání API klíče z požadavku (podporujeme oba formáty)
+    const apiKey = requestData.api_key || requestData.shop_id
+    
+    if (!apiKey) {
+      console.error('Missing API key in request')
+      return NextResponse.json(
+        { error: 'Missing API key parameter (api_key or shop_id)' },
+        { status: 400 }
+      )
     }
-
-    // Generate a unique session ID
+    
+    console.log("Processing request for API key:", apiKey)
+    
+    // Vytvoření Supabase klienta
+    const supabase = createRouteHandlerClient({ cookies })
+    
+    // Kontrola, zda shop existuje
+    const { data: shop, error: shopError } = await supabase
+      .from('shops')
+      .select('id, status')
+      .eq('api_key', apiKey)
+      .single()
+    
+    if (shopError) {
+      console.error('Error fetching shop:', shopError)
+    }
+    
+    if (!shop) {
+      console.error('Shop not found for API key:', apiKey)
+      return NextResponse.json(
+        { error: 'Shop not found' },
+        { status: 404 }
+      )
+    }
+    
+    if (shop.status !== 'active') {
+      console.error('Shop is not active:', shop.status)
+      return NextResponse.json(
+        { error: 'Shop is not active' },
+        { status: 403 }
+      )
+    }
+    
+    // Generování unikátního ID pro session
     const session_id = uuidv4()
-
-    // Create a new session record
-    const { data: session, error: sessionError } = await supabase
-      .from("verification_sessions")
+    console.log("Generated session ID:", session_id)
+    
+    // Vytvoření záznamu v tabulce verification_sessions
+    const { data, error } = await supabase
+      .from('verification_sessions')
       .insert({
-        session_id,
-        shop_id,
-        verification_id: verification_id || null,
-        status: "pending"
+        id: session_id,
+        shop_id: shop.id,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // Platnost 30 minut
+        verification_method: 'other_device'
       })
       .select()
       .single()
-
-    if (sessionError) {
-      throw sessionError
+    
+    if (error) {
+      console.error('Error creating session in database:', error)
+      return NextResponse.json(
+        { error: 'Failed to create session in database' },
+        { status: 500 }
+      )
     }
-
+    
+    console.log("Session created successfully:", data)
+    
     return NextResponse.json({
-      success: true,
-      session_id: session_id
+      session_id,
+      expires_at: data.expires_at
     })
   } catch (error) {
-    console.error("Session creation error:", error)
-    return NextResponse.json({ error: "Chyba při vytváření session" }, { status: 500 })
+    console.error('Unexpected error in session creation:', error)
+    return NextResponse.json(
+      { error: 'Internal server error: ' + (error instanceof Error ? error.message : String(error)) },
+      { status: 500 }
+    )
   }
 }
 

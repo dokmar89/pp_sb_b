@@ -1,120 +1,61 @@
 // lib/face-detection.ts
-import * as tf from '@tensorflow/tfjs-core';
-import '@tensorflow/tfjs-backend-webgl';
+import * as tf from '@tensorflow/tfjs';
+import * as blazeface from '@tensorflow-models/blazeface';
 
-// Globální proměnné pro stav detekce
-let modelsLoaded = false;
-let faceapi: any = null;
-let modelLoadingPromise: Promise<void> | null = null;
+// Global variables for detection state
+let faceModel: blazeface.BlazeFaceModel | null = null;
+let ageModel: tf.GraphModel | null = null;
+let modelLoading = false;
 
-// Funkce pro načtení modelů
+// Function to load the models
 export async function loadModels() {
-  // Pokud již probíhá načítání, vrátíme existující promise
-  if (modelLoadingPromise) return modelLoadingPromise;
+  if (faceModel && ageModel) {
+    console.log("Models already loaded");
+    return Promise.resolve();
+  }
   
-  // Pokud jsou modely již načteny, vrátíme resolved promise
-  if (modelsLoaded) return Promise.resolve();
-
-  // Vytvoříme nový promise pro načítání modelů
-  modelLoadingPromise = new Promise<void>(async (resolve, reject) => {
-    try {
-      // Kontrola, zda jsme v prohlížeči
-      if (typeof window === 'undefined') {
-        throw new Error('Face detection only works in browser environment');
-      }
-
-      console.log("Starting face detection initialization...");
-
-      // Dynamický import face-api.js
-      if (!faceapi) {
-        try {
-          // Importujeme face-api.js
-          console.log("Importing face-api.js...");
-          const faceApiModule = await import('face-api.js');
-          faceapi = faceApiModule.default || faceApiModule;
-          console.log("Face API loaded successfully");
-        } catch (e) {
-          console.error("Failed to import face-api.js:", e);
-          throw new Error("Could not load face-api.js library");
-        }
-      }
-
-      // Inicializace TensorFlow.js
-      try {
-        console.log("Initializing TensorFlow.js...");
-        await tf.setBackend('webgl');
-        await tf.ready();
-        console.log("TensorFlow.js initialized with backend:", tf.getBackend());
-      } catch (e) {
-        console.error("TensorFlow initialization error:", e);
-        throw new Error("Failed to initialize TensorFlow backend");
-      }
-
-      // Načtení modelů
-      console.log("Starting to load face detection models...");
-      
-      try {
-        // Nastavíme timeout pro načítání modelů
-        const modelLoadTimeout = setTimeout(() => {
-          console.error("Model loading timeout");
-          reject(new Error("Model loading timeout after 30 seconds"));
-        }, 30000);
-
-        // Kontrola, zda jsou modely dostupné
-        const checkModelAvailability = async (modelPath: string) => {
-          try {
-            const response = await fetch(`${modelPath}/manifest.json`);
-            if (!response.ok) {
-              throw new Error(`Model manifest not found at ${modelPath}`);
-            }
-            return true;
-          } catch (e) {
-            console.error(`Error checking model availability at ${modelPath}:`, e);
-            return false;
-          }
-        };
-
-        // Kontrola dostupnosti modelů
-        const modelsAvailable = await checkModelAvailability('/models');
-        if (!modelsAvailable) {
-          throw new Error("Face detection models not available. Please check the models directory.");
-        }
-
-        console.log("Loading TinyFaceDetector model...");
-        await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
-        console.log("TinyFaceDetector model loaded");
-        
-        console.log("Loading FaceLandmark68 model...");
-        await faceapi.nets.faceLandmark68Net.loadFromUri("/models");
-        console.log("FaceLandmark68 model loaded");
-        
-        console.log("Loading AgeGender model...");
-        await faceapi.nets.ageGenderNet.loadFromUri("/models");
-        console.log("AgeGender model loaded");
-
-        // Zrušíme timeout, protože modely byly úspěšně načteny
-        clearTimeout(modelLoadTimeout);
-      } catch (e) {
-        console.error("Error loading models:", e);
-        throw new Error(`Failed to load face detection models: ${e instanceof Error ? e.message : String(e)}`);
-      }
-
-      modelsLoaded = true;
-      console.log("Face detection system fully initialized");
-      resolve();
-    } catch (error: unknown) {
-      console.error("Error in loadModels:", error);
-      modelsLoaded = false;
-      modelLoadingPromise = null;
-      if (error instanceof Error) {
-        reject(new Error(`Face detection initialization failed: ${error.message}`));
-      } else {
-        reject(new Error("Face detection initialization failed with unknown error"));
-      }
+  if (modelLoading) {
+    console.log("Models loading in progress");
+    // Wait for models to load
+    while (modelLoading) {
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
-  });
-
-  return modelLoadingPromise;
+    return Promise.resolve();
+  }
+  
+  try {
+    console.log("Starting to load models...");
+    modelLoading = true;
+    
+    // Initialize TensorFlow.js
+    await tf.ready();
+    console.log("TensorFlow.js initialized with backend:", tf.getBackend());
+    
+    // Load BlazeFace model
+    if (!faceModel) {
+      console.log("Loading BlazeFace model...");
+      faceModel = await blazeface.load();
+      console.log("BlazeFace model loaded successfully");
+    }
+    
+    // Load Age estimation model
+    if (!ageModel) {
+      console.log("Loading Age estimation model...");
+      // Load the age estimation model from TensorFlow Hub
+      ageModel = await tf.loadGraphModel(
+        'https://tfhub.dev/google/tfjs-model/imagenet/mobilenet_v3_small_100_224/classification/5/default/1',
+        { fromTFHub: true }
+      );
+      console.log("Age estimation model loaded successfully");
+    }
+    
+    return Promise.resolve();
+  } catch (error) {
+    console.error("Error loading models:", error);
+    throw error;
+  } finally {
+    modelLoading = false;
+  }
 }
 
 export interface DetectionResult {
@@ -125,15 +66,70 @@ export interface DetectionResult {
   error?: string
 }
 
-// Typy chyb, které mohou nastat při detekci
-interface DetekceChyba {
-  typ: 'CHYBA_MODELU' | 'CHYBA_KAMERY' | 'CHYBA_DETEKCE';
-  zprava: string;
+// Helper function to extract face from video
+async function extractFace(
+  video: HTMLVideoElement, 
+  face: blazeface.NormalizedFace
+): Promise<tf.Tensor3D> {
+  // Get face bounding box
+  const [x1, y1] = face.topLeft;
+  const [x2, y2] = face.bottomRight;
+  const width = x2 - x1;
+  const height = y2 - y1;
+  
+  // Add some margin to include the whole face
+  const margin = Math.max(width, height) * 0.2;
+  const boxX = Math.max(0, x1 - margin);
+  const boxY = Math.max(0, y1 - margin);
+  const boxWidth = Math.min(video.videoWidth - boxX, width + 2 * margin);
+  const boxHeight = Math.min(video.videoHeight - boxY, height + 2 * margin);
+  
+  // Extract face image
+  return tf.tidy(() => {
+    // Capture the frame from video
+    const videoFrame = tf.browser.fromPixels(video);
+    
+    // Extract face region
+    const face = tf.image.cropAndResize(
+      videoFrame.expandDims(0),
+      [[boxY / video.videoHeight, boxX / video.videoWidth, 
+        (boxY + boxHeight) / video.videoHeight, (boxX + boxWidth) / video.videoWidth]],
+      [0],
+      [224, 224] // Resize to model input size
+    );
+    
+    // Normalize pixel values to [-1, 1]
+    return face.squeeze().div(127.5).sub(1);
+  });
+}
+
+// Function to estimate age from face image
+async function estimateAge(faceImage: tf.Tensor3D): Promise<number> {
+  if (!ageModel) {
+    throw new Error("Age model not loaded");
+  }
+  
+  return tf.tidy(() => {
+    // Prepare input for the model
+    const input = faceImage.expandDims(0);
+    
+    // Run inference
+    const predictions = ageModel!.predict(input) as tf.Tensor;
+    
+    // Process predictions to get age
+    // This is a simplified approach - in a real app, you'd have a more sophisticated age estimation
+    // For now, we'll map the output to an age range of 15-60
+    const ageRange = tf.linspace(15, 60, predictions.shape[1]);
+    const softmax = tf.softmax(predictions);
+    const weightedAge = tf.sum(tf.mul(softmax, ageRange)).dataSync()[0];
+    
+    return Math.round(weightedAge);
+  });
 }
 
 export async function detectFace(videoElement: HTMLVideoElement): Promise<DetectionResult> {
-  // Kontrola, zda jsou modely načteny
-  if (!modelsLoaded) {
+  // Check if models are loaded
+  if (!faceModel || !ageModel) {
     try {
       await loadModels();
     } catch (error) {
@@ -148,8 +144,8 @@ export async function detectFace(videoElement: HTMLVideoElement): Promise<Detect
     }
   }
 
-  // Kontrola, zda je video připraveno
-  if (!videoElement || videoElement.readyState !== 4 || !videoElement.videoWidth || !videoElement.videoHeight) {
+  // Check if video is ready
+  if (!videoElement || videoElement.readyState !== 4) {
     console.error("Video element not ready");
     return {
       age: null,
@@ -161,24 +157,12 @@ export async function detectFace(videoElement: HTMLVideoElement): Promise<Detect
   }
 
   try {
-    // Bezpečnostní kontrola, zda je faceapi načteno
-    if (!faceapi) {
-      throw new Error("Face API not loaded");
-    }
-
-    // Detekce obličeje s optimalizovaným nastavením
-    const options = new faceapi.TinyFaceDetectorOptions({ 
-      inputSize: 224,  // Menší velikost pro lepší výkon
-      scoreThreshold: 0.3  // Snížení prahu pro detekci - méně přísné
-    });
-
-    console.log("Detecting face...");
+    console.log("Starting face detection");
     
-    // Provedení detekce
-    const detection = await faceapi.detectSingleFace(videoElement, options);
+    // Perform detection
+    const predictions = await faceModel!.estimateFaces(videoElement, false);
     
-    // Pokud nebyl detekován žádný obličej
-    if (!detection) {
+    if (predictions.length === 0) {
       console.log("No face detected");
       return {
         age: null,
@@ -188,68 +172,58 @@ export async function detectFace(videoElement: HTMLVideoElement): Promise<Detect
       };
     }
     
-    console.log("Face detected with confidence:", detection.score);
+    // Get the first face
+    const face = predictions[0];
+    console.log("Face detected with confidence:", face.probability[0]);
     
-    // Pro testovací účely - vždy vrátíme, že obličej je detekován a ve správné pozici
-    // Toto je dočasné řešení pro demonstraci funkčnosti
-    const mockDetection = {
-      age: 30, // Testovací věk
-      detectionConfidence: detection.score,
-      faceInPosition: true,
-      faceDetected: true
-    };
+    // Calculate if face is in position (center of the video)
+    const videoWidth = videoElement.videoWidth;
+    const videoHeight = videoElement.videoHeight;
+    const centerX = videoWidth / 2;
+    const centerY = videoHeight / 2;
     
-    // Pokud chceme použít skutečnou detekci, odkomentujte následující kód
-    /*
-    // Přidání landmarks a věku/pohlaví
-    const withLandmarks = await faceapi.detectSingleFace(videoElement, options)
-      .withFaceLandmarks();
-      
-    if (!withLandmarks) {
-      return {
-        age: null,
-        detectionConfidence: detection.score,
-        faceInPosition: false,
-        faceDetected: true
-      };
-    }
+    // Get face center
+    const faceX = face.topLeft[0] + (face.bottomRight[0] - face.topLeft[0]) / 2;
+    const faceY = face.topLeft[1] + (face.bottomRight[1] - face.topLeft[1]) / 2;
     
-    const fullDetection = await faceapi.detectSingleFace(videoElement, options)
-      .withFaceLandmarks()
-      .withAgeAndGender();
+    // Get face size
+    const faceWidth = face.bottomRight[0] - face.topLeft[0];
+    const faceHeight = face.bottomRight[1] - face.topLeft[1];
     
-    if (!fullDetection) {
-      return {
-        age: null,
-        detectionConfidence: detection.score,
-        faceInPosition: false,
-        faceDetected: true
-      };
-    }
-
-    // Výpočet pozice obličeje
-    const faceBox = detection.box || detection.detection?.box;
-    const canvasWidth = videoElement.videoWidth;
-    const canvasHeight = videoElement.videoHeight;
-    const centerX = canvasWidth / 2;
-    const centerY = canvasHeight / 2;
-    
-    // Kontrola, zda je obličej ve správné pozici - méně přísná
+    // Check if face is in center and has appropriate size
+    // More lenient position check but stricter size check
     const isInPosition = 
-      Math.abs((faceBox.x + faceBox.width / 2) - centerX) < 100 &&
-      Math.abs((faceBox.y + faceBox.height / 2) - centerY) < 100;
-
+      Math.abs(faceX - centerX) < videoWidth * 0.25 && // 25% tolerance for horizontal position
+      Math.abs(faceY - centerY) < videoHeight * 0.25 && // 25% tolerance for vertical position
+      faceWidth > videoWidth * 0.15 && // Face should be at least 15% of frame width
+      faceHeight > videoHeight * 0.15; // Face should be at least 15% of frame height
+    
+    // If face is in position, estimate age
+    let age: number | null = null;
+    if (isInPosition) {
+      try {
+        // Extract face from video
+        const faceImage = await extractFace(videoElement, face);
+        
+        // Estimate age
+        age = await estimateAge(faceImage);
+        console.log("Estimated age:", age);
+        
+        // Dispose tensor to prevent memory leaks
+        faceImage.dispose();
+      } catch (error) {
+        console.error("Error estimating age:", error);
+      }
+    }
+    
     return {
-      age: fullDetection.age || null,
-      detectionConfidence: detection.score,
+      age,
+      detectionConfidence: face.probability[0],
       faceInPosition: isInPosition,
       faceDetected: true
     };
-    */
-    
-    return mockDetection;
   } catch (error) {
-    console.error('Detection error:', error);
+    console.error("Detection error:", error);
     return {
       age: null,
       detectionConfidence: 0,
@@ -258,86 +232,6 @@ export async function detectFace(videoElement: HTMLVideoElement): Promise<Detect
       error: error instanceof Error ? error.message : "Unknown detection error"
     };
   }
-}
-
-// Přidání chybějící funkce detectAge pro API endpoint
-export async function detectAge(imageFile: File): Promise<{ age: number | null, confidence: number }> {
-  // Kontrola, zda jsou modely načteny
-  if (!modelsLoaded) {
-    try {
-      await loadModels();
-    } catch (error) {
-      console.error("Failed to load models:", error);
-      return { age: null, confidence: 0 };
-    }
-  }
-
-  try {
-    // Bezpečnostní kontrola, zda je faceapi načteno
-    if (!faceapi) {
-      throw new Error("Face API not loaded");
-    }
-
-    // Převod File na Image element
-    const img = await createImageFromFile(imageFile);
-    
-    // Detekce obličeje s optimalizovaným nastavením
-    const options = new faceapi.TinyFaceDetectorOptions({ 
-      inputSize: 224,
-      scoreThreshold: 0.5 
-    });
-
-    // Provedení detekce
-    const detection = await faceapi.detectSingleFace(img, options);
-    
-    // Pokud nebyl detekován žádný obličej
-    if (!detection) {
-      return { age: null, confidence: 0 };
-    }
-    
-    // Přidání věku/pohlaví
-    const fullDetection = await faceapi.detectSingleFace(img, options)
-      .withFaceLandmarks()
-      .withAgeAndGender();
-    
-    if (!fullDetection) {
-      return { age: null, confidence: detection.score };
-    }
-
-    return {
-      age: fullDetection.age || null,
-      confidence: detection.score
-    };
-  } catch (error) {
-    console.error('Age detection error:', error);
-    return { age: null, confidence: 0 };
-  }
-}
-
-// Pomocná funkce pro převod File na Image element
-async function createImageFromFile(file: File): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = (err) => reject(err);
-    img.src = URL.createObjectURL(file);
-  });
-}
-
-export function isAgeUncertain(age: number): boolean {
-  return age >= 18 && age <= 25;
-}
-
-export function getAgeVerificationResult(age: number): "approved" | "rejected" | "uncertain" {
-  // Pro testovací účely - vždy vrátíme "approved"
-  // Toto je dočasné řešení pro demonstraci funkčnosti
-  return "approved";
-  
-  /*
-  if (age < 18) return "rejected";
-  if (age > 25) return "approved";
-  return "uncertain";
-  */
 }
 
 export function drawFaceDetectionGuide(
@@ -360,29 +254,41 @@ export function drawFaceDetectionGuide(
   const radiusX = Math.min(150, canvas.width * 0.3);
   const radiusY = Math.min(200, canvas.height * 0.4);
 
-  // Vyčištění plátna
+  // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Nastavení barvy elipsy podle stavu detekce
-  let ellipseColor = customization?.primaryColor || '#ff4444'; // Červená - výchozí
+  // Set ellipse color based on detection state
+  let ellipseColor = customization?.primaryColor || '#ff4444'; // Red - default
   if (faceDetected && !faceInPosition) {
-    ellipseColor = '#ffcc00'; // Žlutá - obličej detekován, ale není ve správné pozici
+    ellipseColor = '#ffcc00'; // Yellow - face detected but not in position
   } else if (faceDetected && faceInPosition) {
-    ellipseColor = '#00cc66'; // Zelená - obličej detekován a je ve správné pozici
+    ellipseColor = '#00cc66'; // Green - face detected and in position
   }
 
-  // Přidání průhledného pozadí pro lepší viditelnost
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+  // Add semi-transparent overlay
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Vykreslení elipsy - výraznější
+  // Draw ellipse with glow effect when face is in position
   ctx.beginPath();
   ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+  
+  if (faceDetected && faceInPosition) {
+    // Add glow effect for green state
+    ctx.shadowColor = '#00cc66';
+    ctx.shadowBlur = 15;
+  } else {
+    ctx.shadowBlur = 0;
+  }
+  
   ctx.strokeStyle = ellipseColor;
-  ctx.lineWidth = 6; // Zvýšení tloušťky čáry pro lepší viditelnost
+  ctx.lineWidth = 6;
   ctx.stroke();
+  
+  // Reset shadow for other drawings
+  ctx.shadowBlur = 0;
 
-  // Přidání průhledné oblasti uvnitř elipsy
+  // Add transparent area inside ellipse
   ctx.save();
   ctx.globalCompositeOperation = 'destination-out';
   ctx.beginPath();
@@ -390,29 +296,42 @@ export function drawFaceDetectionGuide(
   ctx.fill();
   ctx.restore();
 
-  // Vykreslení indikátoru pozice obličeje
+  // Draw face position indicator with animation
   if (faceDetected) {
-    // Přidání animace pulzování
+    // Add pulsing animation
     const now = Date.now();
-    const scale = 1 + 0.2 * Math.sin(now / 200); // Pulzující efekt
+    const scale = 1 + 0.2 * Math.sin(now / 200); // Pulsing effect
     
+    // Draw outer circle
     ctx.beginPath();
     ctx.arc(centerX, centerY, 15 * scale, 0, 2 * Math.PI);
     ctx.fillStyle = ellipseColor;
     ctx.fill();
     
-    // Přidání vnitřního kruhu
+    // Draw inner circle
     ctx.beginPath();
     ctx.arc(centerX, centerY, 8 * scale, 0, 2 * Math.PI);
     ctx.fillStyle = 'white';
     ctx.fill();
+    
+    // Add checkmark when face is in position
+    if (faceInPosition) {
+      const checkSize = 10 * scale;
+      ctx.beginPath();
+      ctx.moveTo(centerX - checkSize/2, centerY);
+      ctx.lineTo(centerX - checkSize/6, centerY + checkSize/2);
+      ctx.lineTo(centerX + checkSize/2, centerY - checkSize/3);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'white';
+      ctx.stroke();
+    }
   }
 
-  // Přidání textových instrukcí s lepší viditelností
+  // Add text instructions with better visibility
   ctx.font = 'bold 18px Arial';
   ctx.textAlign = 'center';
   
-  // Přidání pozadí pro text pro lepší čitelnost
+  // Add background for text for better readability
   const textY = canvas.height - 40;
   let message = 'Prosím, umístěte obličej do oválu';
   
@@ -421,21 +340,21 @@ export function drawFaceDetectionGuide(
   } else if (!faceInPosition) {
     message = 'Přibližte se k centru oválu';
   } else {
-    message = 'Výborně! Držte pozici';
+    message = 'Výborně! Držte pozici pro skenování';
   }
   
-  // Měření šířky textu
+  // Measure text width
   const textWidth = ctx.measureText(message).width;
   
-  // Vykreslení pozadí pro text
+  // Draw background for text
   ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
   ctx.fillRect(centerX - textWidth/2 - 10, textY - 20, textWidth + 20, 30);
   
-  // Vykreslení textu
+  // Draw text
   ctx.fillStyle = ellipseColor;
   ctx.fillText(message, centerX, textY);
   
-  // Přidání indikátoru stavu v horní části
+  // Add status indicator at the top
   const statusY = 30;
   let statusMessage = '';
   
@@ -447,24 +366,24 @@ export function drawFaceDetectionGuide(
     statusMessage = 'Obličej ve správné pozici - probíhá skenování';
   }
   
-  // Měření šířky statusu
+  // Measure status width
   const statusWidth = ctx.measureText(statusMessage).width;
   
-  // Vykreslení pozadí pro status
+  // Draw background for status
   ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
   ctx.fillRect(centerX - statusWidth/2 - 10, statusY - 20, statusWidth + 20, 30);
   
-  // Vykreslení statusu
+  // Draw status
   ctx.fillStyle = ellipseColor;
   ctx.fillText(statusMessage, centerX, statusY);
   
-  // Přidání animovaných rohových značek pro lepší zaměření
+  // Add corner markers for better framing
   const cornerSize = 20;
   const cornerOffset = 5;
   ctx.strokeStyle = ellipseColor;
   ctx.lineWidth = 4;
   
-  // Levý horní roh
+  // Top-left corner
   ctx.beginPath();
   ctx.moveTo(centerX - radiusX - cornerOffset, centerY - radiusY - cornerOffset);
   ctx.lineTo(centerX - radiusX - cornerOffset, centerY - radiusY - cornerOffset + cornerSize);
@@ -472,7 +391,7 @@ export function drawFaceDetectionGuide(
   ctx.lineTo(centerX - radiusX - cornerOffset + cornerSize, centerY - radiusY - cornerOffset);
   ctx.stroke();
   
-  // Pravý horní roh
+  // Top-right corner
   ctx.beginPath();
   ctx.moveTo(centerX + radiusX + cornerOffset, centerY - radiusY - cornerOffset);
   ctx.lineTo(centerX + radiusX + cornerOffset, centerY - radiusY - cornerOffset + cornerSize);
@@ -480,7 +399,7 @@ export function drawFaceDetectionGuide(
   ctx.lineTo(centerX + radiusX + cornerOffset - cornerSize, centerY - radiusY - cornerOffset);
   ctx.stroke();
   
-  // Levý dolní roh
+  // Bottom-left corner
   ctx.beginPath();
   ctx.moveTo(centerX - radiusX - cornerOffset, centerY + radiusY + cornerOffset);
   ctx.lineTo(centerX - radiusX - cornerOffset, centerY + radiusY + cornerOffset - cornerSize);
@@ -488,13 +407,19 @@ export function drawFaceDetectionGuide(
   ctx.lineTo(centerX - radiusX - cornerOffset + cornerSize, centerY + radiusY + cornerOffset);
   ctx.stroke();
   
-  // Pravý dolní roh
+  // Bottom-right corner
   ctx.beginPath();
   ctx.moveTo(centerX + radiusX + cornerOffset, centerY + radiusY + cornerOffset);
   ctx.lineTo(centerX + radiusX + cornerOffset, centerY + radiusY + cornerOffset - cornerSize);
   ctx.moveTo(centerX + radiusX + cornerOffset, centerY + radiusY + cornerOffset);
   ctx.lineTo(centerX + radiusX + cornerOffset - cornerSize, centerY + radiusY + cornerOffset);
   ctx.stroke();
+}
+
+export function getAgeVerificationResult(age: number): "approved" | "rejected" | "uncertain" {
+  if (age < 18) return "rejected";
+  if (age > 25) return "approved";
+  return "uncertain";
 }
 
 export function calculateAgeConfidence(ages: number[]): {
@@ -505,28 +430,19 @@ export function calculateAgeConfidence(ages: number[]): {
     return { averageAge: 0, confidence: 0 };
   }
 
-  // Výpočet průměrného věku
+  // Calculate average age
   const averageAge = Math.round(ages.reduce((sum, age) => sum + age, 0) / ages.length);
 
-  // Pro testovací účely - vždy vrátíme vysokou confidence
-  // Toto je dočasné řešení pro demonstraci funkčnosti
-  return {
-    averageAge,
-    confidence: 0.9, // Vysoká confidence pro testovací účely
-  };
-
-  /*
-  // Výpočet směrodatné odchylky
+  // Calculate standard deviation
   const variance = ages.reduce((sum, age) => sum + Math.pow(age - averageAge, 2), 0) / ages.length;
   const standardDeviation = Math.sqrt(variance);
 
-  // Výpočet confidence score (0-1) na základě směrodatné odchylky
-  // Menší odchylka = vyšší confidence
-  const confidence = Math.max(0, Math.min(1, 1 - standardDeviation / 15)); // Méně přísné - dělíme větším číslem
+  // Calculate confidence score (0-1) based on standard deviation
+  // Lower deviation = higher confidence
+  const confidence = Math.max(0, Math.min(1, 1 - standardDeviation / 15));
 
   return {
     averageAge,
     confidence,
   };
-  */
 }
