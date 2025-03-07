@@ -21,6 +21,22 @@ const nextConfig = {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
   },
+  webpack: (config, { isServer }) => {
+    // Přidání fallbacků pro Node.js moduly, které nejsou dostupné v prohlížeči
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      path: false,
+      crypto: false,
+    };
+    
+    // Ignorování chyb při importu Node.js modulů v prohlížeči
+    config.ignoreWarnings = [
+      { module: /node_modules\/face-api\.js/ }
+    ];
+    
+    return config;
+  },
 }
 
 mergeConfig(nextConfig, userConfig)

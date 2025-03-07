@@ -15,6 +15,8 @@ interface WidgetVerificationProps {
   apiKey: string
   mode: string
   customization: Tables<"customizations">
+  sessionId?: string
+  onComplete?: (result: any) => void
 }
 
 const verificationMethods = [
@@ -56,7 +58,7 @@ const verificationMethods = [
   },
 ]
 
-export function WidgetVerification({ shopId, apiKey, mode, customization }: WidgetVerificationProps) {
+export function WidgetVerification({ shopId, apiKey, mode, customization, sessionId, onComplete }: WidgetVerificationProps) {
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null)
 
   const handleBack = () => {
@@ -64,6 +66,11 @@ export function WidgetVerification({ shopId, apiKey, mode, customization }: Widg
   }
 
   const handleVerificationComplete = (result: any) => {
+    // Call the onComplete callback if provided
+    if (onComplete) {
+      onComplete(result)
+    }
+    
     // Send message to parent window
     if (window.parent !== window) {
       window.parent.postMessage(
@@ -196,6 +203,7 @@ export function WidgetVerification({ shopId, apiKey, mode, customization }: Widg
           customization={customization}
           onComplete={handleVerificationComplete}
           onError={handleError}
+          sessionId={sessionId}
         />
       ) : null}
     </div>
