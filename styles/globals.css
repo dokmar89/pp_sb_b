@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Importujeme modernější font */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    /* Zachováváme brandové barvy, ale přidáváme modernější odstíny */
+    --brand-primary: 195 99% 16%;  /* #005253 - hlavní modrá */
+    --brand-secondary: 187 33% 70%; /* #94B7B8 - světle modrá */
+    --brand-accent: 44 100% 50%;   /* #FFB800 - žlutá */
+
+    /* Základní barvy */
+    --background: 0 0% 100%;
+    --foreground: var(--brand-primary);
+
+    /* Karty a popover */
+    --card: 195 30% 98%;
+    --card-foreground: var(--brand-primary);
+    --popover: 0 0% 100%;
+    --popover-foreground: var(--brand-primary);
+
+    /* Primární a sekundární */
+    --primary: var(--brand-primary);
+    --primary-foreground: 0 0% 100%;
+    --secondary: var(--brand-secondary);
+    --secondary-foreground: var(--brand-primary);
+
+    /* Doplňkové barvy */
+    --muted: 195 20% 95%;
+    --muted-foreground: 195 40% 30%;
+    --accent: var(--brand-accent);
+    --accent-foreground: var(--brand-primary);
+
+    /* Funkční barvy */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 142 72% 29%;
+    --success-foreground: 210 40% 98%;
+
+    /* Rozhraní */
+    --border: 195 30% 90%;
+    --input: 195 30% 90%;
+    --ring: var(--brand-primary);
+    --radius: 0.75rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+  .dark {
+    --background: 195 40% 8%;
+    --foreground: 210 40% 98%;
+
+    --card: 195 35% 12%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 195 35% 12%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: var(--brand-secondary);
+    --primary-foreground: var(--brand-primary);
+
+    --secondary: 195 35% 20%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 195 35% 20%;
+    --muted-foreground: 195 20% 75%;
+
+    --accent: var(--brand-accent);
+    --accent-foreground: var(--brand-primary);
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 195 35% 20%;
+    --input: 195 35% 20%;
+    --ring: var(--brand-secondary);
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.verification-preview button {
+  background-color: var(--primary);
+  color: var(--secondary);
+  border-radius: var(--radius);
+}
+
+.verification-preview h1,
+.verification-preview h2,
+.verification-preview h3 {
+  color: var(--primary);
+}
+
+.verification-preview {
+  font-family: var(--font-family);
+}
