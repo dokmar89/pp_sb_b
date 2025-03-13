@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { InstallationGuide } from "@/components/installation/installation-guide"
 import { InstallationTabs } from "@/components/installation/installation-tabs"
 
+export const dynamic = "force-dynamic";
 export default async function InstallationPage() {
   const supabase = createServerComponentClient({ cookies })
 

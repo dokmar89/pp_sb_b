@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
+import { toast } from "sonner"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { toast } from "sonner"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -18,6 +18,7 @@ import { CreditCard, RotateCw, Scan, Monitor, FileText, QrCode, Moon, Sun, Copy,
 import { getCustomization, updateCustomization } from "@/lib/actions/customization"
  import { uploadLogo } from "@/lib/actions/upload"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
 
 const formSchema = z.object({
   logo: z.string().optional(),

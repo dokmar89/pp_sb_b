@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation"
 import { TicketDetail } from "@/components/support/ticket-detail"
 import { TicketMessages } from "@/components/support/ticket-messages"
 
+export const dynamic = "force-dynamic";
 interface TicketPageProps {
   params: {
     ticketId: string

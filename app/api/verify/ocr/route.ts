@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 import { processIdCard } from "@/lib/ocr"
 
+export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()

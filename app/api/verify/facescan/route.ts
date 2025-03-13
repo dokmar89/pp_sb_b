@@ -3,7 +3,7 @@ import { cookies } from "next/headers"
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 import { detectAge, getAgeVerificationResult } from "@/lib/face-detection"
 
-// Funkce pro zpracování POST požadavku
+export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()

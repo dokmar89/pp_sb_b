@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 
 // Endpoint pro kontrolu stavu session
+export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams

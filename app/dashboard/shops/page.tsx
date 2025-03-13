@@ -2,11 +2,11 @@
 import { cookies } from "next/headers"
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
 import { redirect } from "next/navigation"
-
 import { AddShopDialog } from "@/components/add-shop-dialog"
 import { ShopsList } from "@/components/shops-list"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
+export const dynamic = "force-dynamic";
 export default async function ShopsPage() {
     const supabase = createServerComponentClient({ cookies })
 

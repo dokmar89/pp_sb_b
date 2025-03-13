@@ -4,6 +4,7 @@ import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
 import { redirect } from "next/navigation"
 import { BillingPageClient } from "./billing-page-client";
 
+export const dynamic = "force-dynamic";
 const paymentStatusOptions = [
   { value: "all", label: "Všechny" },
   { value: "completed", label: "Zaplacené" }, // Use 'completed' to match DB

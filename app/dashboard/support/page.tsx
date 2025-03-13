@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { CreateTicketDialog } from "@/components/support/create-ticket-dialog"
 import { TicketsList } from "@/components/support/tickets-list"
 
+export const dynamic = "force-dynamic";
 export default async function SupportPage() {
   const supabase = createServerComponentClient({ cookies })
 

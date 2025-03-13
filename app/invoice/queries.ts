@@ -1,5 +1,7 @@
+import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 
+export const dynamic = "force-dynamic";
 export async function getInvoice(transactionId: number) {
   const supabase = createRouteHandlerClient({ cookies })
 

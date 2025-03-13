@@ -8,6 +8,7 @@ import { RecentVerifications } from "@/components/recent-verifications"
 import { WalletBalance } from "@/components/wallet-balance"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
+export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const supabase = createServerComponentClient({ cookies })
 

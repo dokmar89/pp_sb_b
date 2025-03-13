@@ -4,6 +4,7 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 import { v4 as uuidv4 } from "uuid"
 
 // Create a new session or get an existing one
+export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     // Parsování požadavku

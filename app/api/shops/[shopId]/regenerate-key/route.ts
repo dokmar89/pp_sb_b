@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
@@ -9,7 +11,8 @@ export async function POST(
 ) {
   try {
     const supabase = createRouteHandlerClient({ cookies })
-    
+    const body = await request.json()
+
     // Ověření přístupu
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
@@ -18,7 +21,7 @@ export async function POST(
 
     // Získání company_id uživatele
     const { data: company } = await supabase
-      .from("companies")
+      .from("companies")  
       .select("id")
       .eq("user_id", session.user.id)
       .single()

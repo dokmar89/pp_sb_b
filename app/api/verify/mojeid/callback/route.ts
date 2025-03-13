@@ -2,12 +2,13 @@ import { type NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 
+export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   try {
     const supabase = createRouteHandlerClient({ cookies })
     const searchParams = request.nextUrl.searchParams
     const code = searchParams.get("code")
-    const state = searchParams.get("state") // ID verifikace
+    const state = searchParams.get("state") //   ID verifikace
 
     if (!code || !state) {
       throw new Error("Chybějící parametry")

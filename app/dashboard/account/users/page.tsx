@@ -3,6 +3,7 @@ import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
 import { redirect } from "next/navigation"
 import { UserManagement } from "@/components/account/user-management"
 
+export const dynamic = "force-dynamic";
 export default async function UsersPage() {
   const supabase = createServerComponentClient({ cookies })
 

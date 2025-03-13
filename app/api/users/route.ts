@@ -4,7 +4,7 @@ import { NextResponse } from "next/server"
 export async function POST(request: Request) {
   const requestData = await request.json()
   const { email, password, fullName, role } = requestData
-  
+
   if (!email || !password || !fullName) {
     return NextResponse.json({ error: "Chybí povinné údaje" }, { status: 400 })
   }
@@ -63,6 +63,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, user: data })
   } catch (error) {
     console.error("Chyba při vytváření uživatele:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error:   error instanceof Error ? error.message : 'Nepodařilo se vytvořit uživatele' }, { status: 500 })
   }
 }

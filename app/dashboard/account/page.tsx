@@ -2,11 +2,12 @@ import { cookies } from "next/headers"
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
 import { redirect } from "next/navigation"
 import { Building2, Users } from "lucide-react"
-
 import { AccountForm } from "@/components/account/account-form"
 import { UserManagement } from "@/components/account/user-management"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+export const dynamic = "force-dynamic"
 
 export default async function AccountPage() {
   const supabase = createServerComponentClient({ cookies })

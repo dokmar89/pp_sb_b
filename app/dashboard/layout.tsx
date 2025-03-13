@@ -8,6 +8,7 @@ import { MainNav } from "@/components/nav/main-nav"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Button } from "@/components/ui/button"
 
+export const dynamic = "force-dynamic";
 export default async function DashboardLayout({
   children,
 }: {

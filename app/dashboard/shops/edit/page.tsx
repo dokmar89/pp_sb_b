@@ -3,6 +3,7 @@ import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
 import { redirect } from "next/navigation"
 import { EditShopForm } from "@/components/shops/edit-shop-form"
 
+export const dynamic = "force-dynamic";
 export default async function EditShopPage({
   searchParams,
 }: {
