@@ -1,43 +1,43 @@
-# PassProve — client portal and verification integration
+# PassProve — klientský portál a integrační varianta
 
-A Next.js/Supabase client-portal variant combining account management, e-shop configuration and verification UI.
+Varianta klientského portálu v Next.js a Supabase spojující správu účtu, e-shopů a ověřovací rozhraní.
 
-**Status:** Legacy/parallel PassProve implementation retained for reference; not presented as the canonical production release.
+**Stav:** Starší nebo souběžná varianta PassProve uchovaná jako reference; nejde o označení hlavní produkční verze.
 
-## Scope
+## Co projekt obsahuje
 
-- Dashboard, shops, account, customization and support pages.
-- Verification and invoice API route source.
-- Face/OCR-related UI and model assets.
+- Přehled, e-shopy, účet, přizpůsobení a podpora.
+- Zdrojové kódy API pro ověřování a faktury.
+- Rozhraní a modelové soubory pro práci s obličejem a OCR.
 
-## Technology
+## Technologie
 
 Next.js, React, TypeScript, Tailwind CSS, Supabase.
 
-## Architecture and source map
+## Architektura a struktura
 
-- `app/` — primary Next.js routes
-- `api/` — parallel API source layout
-- `components/` — portal components
-- `lib/` — application helpers
+- `app/` — hlavní stránky a API Next.js
+- `api/` — souběžná struktura zdrojů API
+- `components/` — komponenty portálu
+- `lib/` — aplikační pomocné funkce
 
-## Local development
+## Lokální vývoj
 
-Requires Node.js and npm. From the repository root:
+Potřebujete Node.js a npm. V kořenové složce repozitáře spusťte:
 
 ```sh
 npm install
 npm run dev
 ```
 
-Build command declared by this checkout: `npm run build`.
+Příkaz pro sestavení uvedený v projektu: `npm run build`.
 
-These are the repository scripts, not a claim of a passing build. Dependency installation, build and live integrations were not executed during the documentation review.
+Jde o příkazy deklarované v repozitáři, nikoli o potvrzení úspěšného sestavení. Instalace závislostí, sestavení ani napojení na živé služby nebyly při úpravě dokumentace spuštěny.
 
-## Configuration and limitations
+## Konfigurace a omezení
 
-Parallel route copies and committed generated content under `client/.next/` are present. Route files outside the framework route directory are not automatically active endpoints. Validate the active implementation before consolidation. Provider credentials, database policies and real verification results have not been validated.
+Přítomné jsou souběžné kopie cest a generovaný obsah v `client/.next/`. Soubory mimo adresáře cest frameworku se automaticky nestávají aktivními API. Před sjednocením ověřte používanou implementaci. Přihlašovací údaje poskytovatelů, databázové politiky a reálné výsledky ověřování nebyly prověřeny.
 
-## Documentation next steps
+## Co doplnit do dokumentace
 
-Capture screenshots using synthetic data, document a reproducible test run, and record which integrations have been verified. Keep credentials and deployment-specific configuration outside version control.
+Snímky obrazovky s fiktivními daty, opakovatelný postup ověření a přehled skutečně otestovaných integrací. Přihlašovací údaje a konfigurace konkrétního nasazení patří mimo Git.
